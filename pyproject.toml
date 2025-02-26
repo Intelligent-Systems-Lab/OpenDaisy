@@ -1,0 +1,132 @@
+[build-system]
+requires = ["poetry_core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "daisyfl"
+version = "1.0.0"
+description = "Daisy - A Hierarchical Friendly Federated Learning Framework For Edge Computing"
+license = "Apache-2.0"
+authors = ["tcfwbper <b05208031@ntu.edu.tw>"]
+readme = "README.md"
+homepage = "https://github.com/Intelligent-Systems-Lab/daisy"
+repository = "https://github.com/Intelligent-Systems-Lab/daisy"
+documentation = "https://github.com/Intelligent-Systems-Lab/daisy/tree/main/doc/daisy"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+packages = [
+    { include = "daisyfl", from = "src/py" },
+]
+exclude = [
+    "src/py/**/*_test.py",
+]
+
+
+[tool.poetry.dependencies]
+python = "^3.8"
+# Mandatory dependencies
+numpy = "^1.21.0"
+grpcio = "^1.43.0"
+protobuf = "^3.19.0"
+importlib-metadata = { version = "^4.0.0", markers = "python_version < '3.8'" }
+iterators = "^0.0.2"
+dataclasses-json = "^0.5.7"
+# Optional dependencies
+Flask = "^2.2.2"
+pycryptodome = "^3.16.0"
+cryptography = "^38.0.4"
+
+[tool.poetry.dev-dependencies]
+types-protobuf = "==3.19.18"
+types-setuptools = "==57.4.14"
+types-dataclasses = "==0.6.5"
+isort = "==5.10.1"
+black = "==22.8.0"
+docformatter = "==1.5.0"
+mypy = "==0.961"
+pylint = "==2.13.8"
+flake8 = "==3.9.2"
+pytest = "==7.1.2"
+pytest-cov = "==3.0.0"
+pytest-watch = "==4.2.0"
+grpcio-tools = "==1.43.0"
+mypy-protobuf = "==3.2.0"
+jupyterlab = "==3.3.2"
+rope = "==0.19.0"
+semver = "==2.13.0"
+sphinx = "==5.1.1"
+myst-parser = "==0.18.0"
+sphinx-design = "==0.3.0"
+sphinx-copybutton = "==0.5.0"
+sphinxcontrib-mermaid = "==0.7.1"
+furo = "==2022.6.21"
+sphinx-reredirects = "==0.1.1"
+nbsphinx = "==0.8.9"
+
+[tool.isort]
+line_length = 88
+indent = "    "
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+known_first_party = ["daisyfl", "daisy_code_generator"]
+
+[tool.black]
+line-length = 88
+target-version = ["py38", "py39", "py310"]
+
+[tool.pylint."MESSAGES CONTROL"]
+disable = "bad-continuation,duplicate-code,too-few-public-methods,useless-import-alias"
+
+[tool.pytest.ini_options]
+minversion = "6.2"
+addopts = "-qq"
+testpaths = [
+    "src/py/daisyfl",
+    "src/py/daisy_code_generator",
+]
+
+[tool.mypy]
+plugins = [
+    "numpy.typing.mypy_plugin",
+]
+ignore_missing_imports = true
+strict = true
+
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = [
+    "importlib.metadata.*",
+    "importlib_metadata.*",
+]
+follow_imports = "skip"
+follow_imports_for_stubs = true
+disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+module = "torch.*"
+follow_imports = "skip"
+follow_imports_for_stubs = true

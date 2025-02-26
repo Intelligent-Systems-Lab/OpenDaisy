@@ -1,0 +1,19 @@
+{
+	"TID": "flat_fl_demo",
+	"NUM_ROUNDS": 2,
+	"EVALUATE_INTERVAL": 1,
+	"EVALUATE_INIT_MODEL_MASTER": true,
+	"MIN_WAITING_TIME_MASTER": 5,
+	"MODEL_PATH": "model.npy",
+	"OPERATORS": {
+		"MASTER_SERVER_OPERATOR": ["daisyfl.operator.base.base_server_logic", "BaseServerLogic"],
+		"CLIENT_OPERATOR": ["daisyfl.operator.base.base_client_logic", "BaseClientLogic"]
+	},
+	"STRATEGIES": {
+		"MASTER_STRATEGY": ["daisyfl.strategy.fedavg", "FedAvg"]
+	},
+	"METRICS_HANDLERS": {
+		"MASTER_METRICS_HANDLER": ["daisyfl.metrics_handler.flat_metrics_handler", "FlatMetricsHandler"]
+	},
+	"SAVE_MODEL": true
+}

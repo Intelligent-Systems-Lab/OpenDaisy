@@ -1,0 +1,24 @@
+{
+	"TID": "sec_agg_demo",
+	"NUM_ROUNDS": 2,
+	"ZONE_COMM_FREQUENCY": 2,
+	"EVALUATE_INTERVAL": 1,
+	"EVALUATE_INIT_MODEL_MASTER": true,
+	"MIN_WAITING_TIME_MASTER": 10,
+	"MIN_WAITING_TIME_ZONE": 5,
+	"MODEL_PATH": "model.npy",
+	"OPERATORS": {
+		"MASTER_SERVER_OPERATOR": ["daisyfl.operator.base.base_server_logic", "BaseServerLogic"],
+		"ZONE_SERVER_OPERATOR": ["daisyfl.operator.sec_agg.sec_agg_server_logic", "SecAggServerLogic"],
+		"CLIENT_OPERATOR": ["daisyfl.operator.sec_agg.sec_agg_client_logic", "SecAggClientLogic"]
+	},
+	"STRATEGIES": {
+		"MASTER_STRATEGY": ["daisyfl.strategy.fedavg", "FedAvg"],
+		"ZONE_STRATEGY": ["daisyfl.strategy.sec_agg", "SecAgg"]
+	},
+	"METRICS_HANDLERS": {
+		"MASTER_METRICS_HANDLER": ["daisyfl.metrics_handler.hier_metrics_handler", "HierMetricsHandler"],
+		"ZONE_METRICS_HANDLER": ["daisyfl.metrics_handler.hier_metrics_handler", "HierMetricsHandler"]
+	},
+	"SAVE_MODEL": true
+}

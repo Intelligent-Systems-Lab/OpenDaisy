@@ -1,0 +1,28 @@
+# hier
+master:
+    address: "0.0.0.0:8887"
+    api_ip: "0.0.0.0"
+    api_port: 9887
+    type: "master"
+    children:
+        - zone0:
+            address: "0.0.0.0:8888"
+            type: "zone"
+            children:
+                - client0:
+                    address: "0.0.0.0:10087"
+                    type: "client"
+                - client1:
+                    address: "0.0.0.0:10088"
+                    type: "client"
+        - zone1:
+            address: "0.0.0.0:8889"
+            type: "zone"
+            children:
+                - client2:
+                    address: "0.0.0.0:10089"
+                    type: "client"
+                - client3:
+                    address: "0.0.0.0:10090"
+                    type: "client"
+

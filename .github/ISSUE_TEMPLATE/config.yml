@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Email address
+    url: inuinu.ai09@nycu.edu.tw
+  - name: Daisy Issues
+    url: https://github.com/Intelligent-Systems-Lab/daisy/issues
+    about: Contribute new features/enhancements, report bugs, or improve the documentation.
+

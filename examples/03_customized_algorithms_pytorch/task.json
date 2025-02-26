@@ -1,0 +1,24 @@
+{
+	"TID": "customized_fl_algorithm_demo",
+	"NUM_ROUNDS": 2,
+	"ZONE_COMM_FREQUENCY": 2,
+	"EVALUATE_INTERVAL": 1,
+	"EVALUATE_INIT_MODEL_MASTER": true,
+	"MIN_WAITING_TIME_MASTER": 10,
+	"MIN_WAITING_TIME_ZONE": 5,
+	"MODEL_PATH": "model.npy",
+	"OPERATORS": {
+		"MASTER_SERVER_OPERATOR": ["my_operator.server_logic", "MyServerLogic"],
+		"ZONE_SERVER_OPERATOR": ["my_operator.server_logic", "MyServerLogic"],
+		"CLIENT_OPERATOR": ["my_operator.client_logic", "MyClientLogic"]
+	},
+	"STRATEGIES": {
+		"MASTER_STRATEGY": ["my_strategy.fedavg", "MyFedAvg"],
+		"ZONE_STRATEGY": ["my_strategy.fedavg", "MyFedAvg"]
+	},
+	"METRICS_HANDLERS": {
+		"MASTER_METRICS_HANDLER": ["my_metrics_handler.hier_metrics_handler", "MyMetricsHandler"],
+		"ZONE_METRICS_HANDLER": ["my_metrics_handler.hier_metrics_handler", "MyMetricsHandler"]
+	},
+	"SAVE_MODEL": true
+}

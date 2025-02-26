@@ -1,0 +1,57 @@
+# Copyright 2024 Intelligence Systems Lab. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
+# task
+ACCURACY = "ACCURACY"
+CLIENT_FAIL = "CLIENT_FAIL"
+CLIENT_HANDLING = "CLIENT_HANDLING"
+CLIENT_IDLING = "CLIENT_IDLING"
+CLIENT_OPERATOR = "CLIENT_OPERATOR"
+CLIENT_ROAM = "CLIENT_ROAM"
+CURRENT_ROUND = "CURRENT_ROUND"
+CURRENT_ROUND_MASTER = "CURRENT_ROUND_MASTER"
+CURRENT_ROUND_ZONE = "CURRENT_ROUND_ZONE"
+EVALUATE = "EVALUATE"
+EVALUATE_INIT_MODEL_MASTER = "EVALUATE_INIT_MODEL_MASTER"
+EVALUATE_INTERVAL = "EVALUATE_INTERVAL"
+DATA_SAMPLES = "DATA_SAMPLES"
+LOSS = "LOSS"
+MASTER_METRICS_HANDLER = "MASTER_METRICS_HANDLER"
+MASTER_SERVER_OPERATOR = "MASTER_SERVER_OPERATOR"
+MASTER_STRATEGY = "MASTER_STRATEGY"
+METRICS = "METRICS"
+METRICS_HANDLERS = "METRICS_HANDLERS"
+MIN_WAITING_TIME = "MIN_WAITING_TIME"
+MIN_WAITING_TIME_MASTER = "MIN_WAITING_TIME_MASTER"
+MIN_WAITING_TIME_ZONE = "MIN_WAITING_TIME_ZONE"
+MODEL_PATH = "MODEL_PATH"
+NUM_ROUNDS = "NUM_ROUNDS"
+OPERATORS = "OPERATORS"
+SAVE_MODEL = "SAVE_MODEL"
+SERVER_WAITING = "SERVER_WAITING"
+SERVER_IDLING = "SERVER_IDLING"
+STRATEGIES = "STRATEGIES"
+TID = "TID"
+ZONE_COMM_FREQUENCY = "ZONE_COMM_FREQUENCY"
+ZONE_METRICS_HANDLER = "ZONE_METRICS_HANDLER"
+ZONE_SERVER_OPERATOR = "ZONE_SERVER_OPERATOR"
+ZONE_STRATEGY = "ZONE_STRATEGY"
+
+# metadata
+ANCHOR = "anchor"
+CID = "cid"
+HANDOVER= "handover"
+UPLINK_CERTIFICATES = "uplink_certificates"
+
