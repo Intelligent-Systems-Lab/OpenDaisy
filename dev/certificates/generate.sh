@@ -4,7 +4,12 @@
 set -e
 cd "$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"/../../
 
-CA_PASSWORD=notsafe
+# CA_PASSWORD should be set as environment variable for security
+if [ -z "$CA_PASSWORD" ]; then
+    echo "Error: CA_PASSWORD environment variable not set"
+    echo "Please set a secure password: export CA_PASSWORD=your_secure_password"
+    exit 1
+fi
 
 CERT_DIR=.cache/certificates
 
