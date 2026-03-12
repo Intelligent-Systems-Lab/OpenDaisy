@@ -137,7 +137,7 @@ wrap-summaries = 120
 wrap-descriptions = 120
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py38"
 line-length = 120
 select = ["D", "E", "F", "W", "B", "ISC", "C4", "UP"]
 fixable = ["D", "E", "F", "W", "B", "ISC", "C4", "UP"]
