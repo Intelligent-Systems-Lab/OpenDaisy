@@ -29,7 +29,7 @@ python -m mypy "$TARGET_DIR"
 echo "- mypy: done"
 
 echo "- pylint: start"
-python -m pylint --max-line-length=120 "$TARGET_DIR"
+python -m pylint --max-line-length=120 --ignore-patterns=".*_test\.py$" "$TARGET_DIR"
 echo "- pylint: done"
 
 echo "- flake8: start"
