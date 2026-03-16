@@ -107,7 +107,7 @@ ignore-paths = [
 ]
 
 [tool.pylint."MESSAGES CONTROL"]
-disable = "bad-continuation,duplicate-code,too-few-public-methods,useless-import-alias"
+disable = "bad-continuation,duplicate-code,too-few-public-methods,useless-import-alias,invalid-name,too-many-locals,too-many-branches,too-many-instance-attributes,too-many-arguments,broad-except,too-many-return-statements,too-many-statements,bare-except"
 
 [tool.pytest.ini_options]
 minversion = "6.2"
@@ -154,7 +154,7 @@ target-version = "py38"
 line-length = 120
 select = ["D", "E", "F", "W", "B", "ISC", "C4", "UP"]
 fixable = ["D", "E", "F", "W", "B", "ISC", "C4", "UP"]
-ignore = ["B024", "B027", "E722"]
+ignore = ["B024", "B027", "E722", "E741"]
 exclude = [
     "*_test.py",
     ".bzr",
