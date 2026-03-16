@@ -36,8 +36,8 @@ echo "- flake8: start"
 python -m flake8 "$TARGET_DIR"
 echo "- flake8: done"
 
-# echo "- pytest: start"
-# python -m pytest tests --cov="$TARGET_DIR" --disable-warnings
-# echo "- pytest: done"
+echo "- pytest: start"
+python -m pytest "$TARGET_DIR" --cov="$TARGET_DIR" --disable-warnings
+echo "- pytest: done"
 
 echo "- All Python checks passed"
