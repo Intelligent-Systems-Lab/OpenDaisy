@@ -29,15 +29,16 @@
 # ==============================================================================
 """gRPC-based Daisy ClientProxy implementation."""
 
-from typing import Optional, Dict, Union, Callable
+from typing import Callable, Dict, Optional
 
-from daisyfl.common import FitIns, EvaluateIns, CID
+from daisyfl.common import CID, EvaluateIns, FitIns
 from daisyfl.proto.transport_pb2 import ClientMessage, ServerMessage
+from daisyfl.utils import daisyfl_serde
+from daisyfl.utils.logger import INFO, log
+
 from .client_proxy import ClientProxy
 from .grpc_bridge import GRPCBridge
-from daisyfl.utils.logger import log
-from daisyfl.utils import daisyfl_serde
-from daisyfl.utils.logger import WARNING, INFO, ERROR
+
 
 class GrpcClientProxy(ClientProxy):
     """Daisy client proxy which delegates over the network using gRPC."""
@@ -48,12 +49,14 @@ class GrpcClientProxy(ClientProxy):
         bridge: GRPCBridge,
         metadata_dict: Dict,
     ):
+        """Initialize GrpcClientProxy."""
         super().__init__(cid)
         self.bridge = bridge
         self.metadata_dict: Dict = metadata_dict
-        self.submit_result = None
+        self.submit_result: Optional[Callable] = None
+        self.is_pending: Optional[Callable] = None
+        self.client_status_transition: Optional[Callable] = None
         self.bridge.set_submit_client_message_fn(self.submit_client_message)
-
 
     def fit(
         self,
@@ -76,24 +79,31 @@ class GrpcClientProxy(ClientProxy):
         self.bridge.request(ServerMessage(evaluate_ins=evaluate_msg))
 
     def submit_client_message(
-        self, client_message: ClientMessage, roaming,
+        self,
+        client_message: ClientMessage,
+        **kwargs,
     ) -> None:
         """Receive, deserialize, and submit a ClientMessage."""
+        roaming: bool = kwargs.get("roaming", False)
         field = client_message.WhichOneof("msg")
         if field == "fit_res":
             fit_res = daisyfl_serde.fit_res_from_proto(client_message.fit_res)
-            self.submit_result((self, fit_res), roaming)
+            if self.submit_result:
+                self.submit_result((self, fit_res), roaming)
         elif field == "evaluate_res":
             evaluate_res = daisyfl_serde.evaluate_res_from_proto(client_message.evaluate_res)
-            self.submit_result((self, evaluate_res), roaming)
+            if self.submit_result:
+                self.submit_result((self, evaluate_res), roaming)
         else:
-            log(INFO, "Will not return {} type of message to Server".format(field))
+            log(INFO, "Will not return %s type of message to Server", field)
 
     def set_is_pending_fn(self, is_pending: Callable) -> None:
         """Set callback function for checking if the client_proxy is pending."""
+
         def is_pending_with_cid():
             return is_pending(self.cid)
-        self.is_pending: Callable = is_pending_with_cid
+
+        self.is_pending = is_pending_with_cid
 
     def set_submit_result_fn(self, submit_result: Callable) -> None:
         """Set callback function for submitting a result."""
@@ -102,4 +112,3 @@ class GrpcClientProxy(ClientProxy):
     def set_client_status_transition_fn(self, client_status_transition: Callable) -> None:
         """Set callback function for client status transition."""
         self.client_status_transition = client_status_transition
-    

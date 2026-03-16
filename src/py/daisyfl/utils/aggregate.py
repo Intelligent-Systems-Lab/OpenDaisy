@@ -31,7 +31,7 @@
 
 
 from functools import reduce
-from typing import List, Tuple, Callable
+from typing import List, Tuple
 
 import numpy as np
 
@@ -42,41 +42,39 @@ def aggregate_fedavg(results: List[Tuple[NDArrays, int]]) -> NDArrays:
     """Compute weighted average."""
     # Calculate the total number of data volumes used during training
     data_samples_total = sum([data_samples for _, data_samples in results])
-    
+
     if data_samples_total == 0:
         data_samples_total = len(results)
 
     # Create a list of weights, each multiplied by the related number of data volumes
-    weighted_weights = [
-        [layer * data_samples for layer in weights] for weights, data_samples in results
-    ]
+    weighted_weights = [[layer * data_samples for layer in weights] for weights, data_samples in results]
 
     # Compute average weights of each layer
     weights_prime: NDArrays = [
-        reduce(np.add, layer_updates) / data_samples_total
-        for layer_updates in zip(*weighted_weights)
+        reduce(np.add, layer_updates) / data_samples_total for layer_updates in zip(*weighted_weights)
     ]
     return weights_prime
+
 
 def aggregate_fedasync(
     global_model: NDArrays,
     local_model: NDArrays,
     alpha: float,
 ) -> NDArrays:
-    """Aggregate local model using FedAsync"""
+    """Aggregate local model using FedAsync."""
     weighted_global_model = [layer * (1 - alpha) for layer in global_model]
     weighted_local_model = [layer * alpha for layer in local_model]
     nd_arrays_list = [weighted_global_model, weighted_local_model]
-    new_global_model: NDArrays = [
-        reduce(np.add, layer_updates) for layer_updates in zip(*nd_arrays_list)
-    ]
+    new_global_model: NDArrays = [reduce(np.add, layer_updates) for layer_updates in zip(*nd_arrays_list)]
     return new_global_model
+
 
 def weighted_loss_avg(results: List[Tuple[float, int]]) -> float:
     """Aggregate loss obtained from multiple clients."""
     data_samples_total = sum([data_samples for _, data_samples in results])
     weighted_losses = [data_samples * loss for loss, data_samples in results]
     return sum(weighted_losses) / data_samples_total
+
 
 def weighted_acc_avg(results: List[Tuple[float, int]]) -> float:
     """Aggregate accuracy obtained from multiple clients."""

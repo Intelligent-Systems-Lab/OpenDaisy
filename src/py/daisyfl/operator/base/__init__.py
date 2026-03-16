@@ -13,8 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Base operators."""
-from .base_server_logic import BaseServerLogic as BaseServerLogic
 from .base_client_logic import BaseClientLogic as BaseClientLogic
+from .base_server_logic import BaseServerLogic as BaseServerLogic
 
 __all__ = [
     "BaseServerLogic",

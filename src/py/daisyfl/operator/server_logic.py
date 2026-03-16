@@ -12,30 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Abstract base class defining server operational logic for federated learning."""
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Tuple, Callable
-from queue import Queue
-from daisyfl.strategy import Strategy
-from daisyfl.metrics_handler import MetricsHandler
-from daisyfl.common import (
-    Parameters,
-    Report,
-    Task,
-    CURRENT_ROUND,
-    TID,
-)
-from daisyfl.utils.logger import log
+from typing import Optional, Tuple
+
+from daisyfl.common import Parameters, Report, Task
 from daisyfl.common.communicator import Communicator
+from daisyfl.metrics_handler import MetricsHandler
+from daisyfl.strategy import Strategy
 
 
 class ServerLogic(ABC):
     """Abstract base class for server (Zone or Master) operational logic defenition."""
-    
-    def __init__(self,
-        communicator: Communicator,
-        strategy: Strategy,
-        metrics_handler: MetricsHandler
-    ) -> None:
+
+    def __init__(self, communicator: Communicator, strategy: Strategy, metrics_handler: MetricsHandler) -> None:
+        """Initialize ServerLogic with a communicator, strategy, and metrics handler."""
         self.communicator: Communicator = communicator
         self.strategy: Strategy = strategy
         self.metrics_handler: MetricsHandler = metrics_handler
@@ -45,9 +36,7 @@ class ServerLogic(ABC):
         self,
         parameters: Parameters,
         task: Task,
-    ) -> Optional[
-        Tuple[Optional[Parameters], Optional[Report]]
-    ]:
+    ) -> Optional[Tuple[Optional[Parameters], Optional[Report]]]:
         """Perform a single round fit."""
 
     @abstractmethod
@@ -57,4 +46,3 @@ class ServerLogic(ABC):
         task: Task,
     ) -> Optional[Report]:
         """Validate current global model."""
-        

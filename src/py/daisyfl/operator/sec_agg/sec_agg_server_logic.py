@@ -12,74 +12,57 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from daisyfl.utils.logger import INFO, WARNING, ERROR
-from typing import Dict, List, Optional, Tuple, Callable
-from queue import Queue
-from daisyfl.common.daisyfl_typing import NDArrays
-from daisyfl.strategy import Strategy
-from daisyfl.metrics_handler import MetricsHandler
+"""Secure Aggregation server logic for federated learning rounds."""
+from typing import Dict, List, Optional, Tuple
+
 from daisyfl.common import (
+    DATA_SAMPLES,
+    METRICS,
+    MIN_WAITING_TIME,
     TID,
     FitIns,
     FitRes,
     Parameters,
-    Scalar,
     Report,
+    Scalar,
     Task,
-    DATA_SAMPLES,
-    METRICS,
-    MIN_WAITING_TIME,
-    CURRENT_ROUND,
 )
-from daisyfl.utils.parameter import parameters_to_ndarrays, ndarrays_to_parameters
+from daisyfl.common.client_proxy import ClientProxy
+from daisyfl.common.daisyfl_typing import NDArrays
+from daisyfl.operator import ServerLogic as ServerLogic
+from daisyfl.utils.logger import INFO, WARNING, log
+from daisyfl.utils.parameter import ndarrays_to_parameters, parameters_to_ndarrays
+
+from . import primitives
 from .common import (
-    Proto,
+    FORWARD_PACKETS,
     PROTO_KEY,
-    SEC_AGG_PARAM_DICT,
     PUBLIC_KEYS,
     PUBLIC_KEYS_LIST,
-    ShareKeysPacket,
+    SEC_AGG_PARAM_DICT,
     SHARE_KEYS_PACKETS,
-    FORWARD_PACKETS,
-    ShareRequest,
     SHARE_REQUEST,
     SHARE_RESPONSE,
+    Proto,
+    ShareRequest,
 )
-from . import primitives
-from daisyfl.operator import ServerLogic as ServerLogic
-from daisyfl.common.communicator import Communicator
-from daisyfl.common.client_proxy import ClientProxy
-from daisyfl.utils.logger import log
 
 
 class SecAggServerLogic(ServerLogic):
     """Daisy server (Zone or Master) operational logic definition of secure aggregation."""
 
-    def __init__(
-        self,
-        communicator: Communicator,
-        strategy: Strategy,
-        metrics_handler: MetricsHandler,
-    ) -> None:
-        self.communicator: Communicator = communicator
-        self.strategy: Strategy = strategy
-        self.metrics_handler: MetricsHandler = metrics_handler
-
     def fit_round(
         self,
         parameters: Parameters,
         task: Task,
-    ) -> Optional[
-        Tuple[Optional[Parameters], Optional[Report]]
-    ]:        
+    ) -> Optional[Tuple[Optional[Parameters], Optional[Report]]]:
         """Perform a single round fit."""
         client_instructions = self.strategy.configure_fit(parameters=parameters, config=task.config, stage=0)
 
         # === Stage 0: Setup ===
         log(INFO, "SecAgg Stage 0: Setting up Params")
-        sec_agg_param_dict = get_sec_agg_param_dict(task,len(client_instructions))
-        setup_dict: Dict[int, Tuple[ClientProxy, FitIns]] = \
-            initialize_ins_dict(client_instructions)
+        sec_agg_param_dict = get_sec_agg_param_dict(task, len(client_instructions))
+        setup_dict: Dict[int, Tuple[ClientProxy, FitIns]] = initialize_ins_dict(client_instructions)
         setup_dict = set_ins_stage(setup_dict, Proto.SETUP.value)
         setup_dict = set_sec_agg_param_dict(setup_dict, sec_agg_param_dict)
         # pass dummy parameters via gRPC
@@ -88,49 +71,63 @@ class SecAggServerLogic(ServerLogic):
 
         subtask_id, subtask_status = self.communicator.fit_clients(client_instructions=client_instructions)
         success = self.strategy.wait_fit(subtask_status=subtask_status, min_waiting_time=task.config[MIN_WAITING_TIME])
-        
+
         if not success:
             self.communicator.finish_subtask(subtask_id)
-            task.config.update({METRICS: {},})
+            task.config.update(
+                {
+                    METRICS: {},
+                }
+            )
             return parameters, Report(config=task.config)
-        
+
         results = self.communicator.get_results(subtask_id)
         self.communicator.finish_subtask(subtask_id)
 
         # === Stage 1: Ask Public Keys ===
         log(INFO, "SecAgg Stage 1: Asking Keys")
-        ask_keys_dict: Dict[int, Tuple[ClientProxy, FitIns]] = \
-            next_ins_dict(setup_dict, results)
+        ask_keys_dict: Dict[int, Tuple[ClientProxy, FitIns]] = next_ins_dict(setup_dict, results)
         ask_keys_dict = set_ins_stage(ask_keys_dict, Proto.ASK_KEYS.value)
         client_instructions = client_ins_from_ins_dict(ask_keys_dict)
-        client_instructions = self.strategy.configure_fit(parameters=parameters, config=task.config, stage=1, client_instructions=client_instructions)
+        client_instructions = self.strategy.configure_fit(
+            parameters=parameters, config=task.config, stage=1, client_instructions=client_instructions
+        )
         subtask_id, subtask_status = self.communicator.fit_clients(client_instructions=client_instructions)
         success = self.strategy.wait_fit(subtask_status=subtask_status, min_waiting_time=task.config[MIN_WAITING_TIME])
-        
+
         if not success:
             self.communicator.finish_subtask(subtask_id)
-            task.config.update({METRICS: {},})
+            task.config.update(
+                {
+                    METRICS: {},
+                }
+            )
             return parameters, Report(config=task.config)
-        
+
         results = self.communicator.get_results(subtask_id)
         self.communicator.finish_subtask(subtask_id)
 
         # === Stage 2: Share Keys ===
         log(INFO, "SecAgg Stage 2: Sharing Keys")
-        share_keys_dict: Dict[int, Tuple[ClientProxy, FitIns]] = \
-            next_ins_dict(ask_keys_dict, results)
+        share_keys_dict: Dict[int, Tuple[ClientProxy, FitIns]] = next_ins_dict(ask_keys_dict, results)
         share_keys_dict = set_ins_stage(share_keys_dict, Proto.SHARE_KEYS.value)
         share_keys_dict = set_pks_dict(share_keys_dict, results)
         client_instructions = client_ins_from_ins_dict(share_keys_dict)
-        client_instructions = self.strategy.configure_fit(parameters=parameters, config=task.config, stage=2, client_instructions=client_instructions)
+        client_instructions = self.strategy.configure_fit(
+            parameters=parameters, config=task.config, stage=2, client_instructions=client_instructions
+        )
         subtask_id, subtask_status = self.communicator.fit_clients(client_instructions=client_instructions)
         success = self.strategy.wait_fit(subtask_status=subtask_status, min_waiting_time=task.config[MIN_WAITING_TIME])
-        
+
         if not success:
             self.communicator.finish_subtask(subtask_id)
-            task.config.update({METRICS: {},})
+            task.config.update(
+                {
+                    METRICS: {},
+                }
+            )
             return parameters, Report(config=task.config)
-        
+
         results = self.communicator.get_results(subtask_id)
         self.communicator.finish_subtask(subtask_id)
 
@@ -142,15 +139,21 @@ class SecAggServerLogic(ServerLogic):
         # parameters for training
         ask_vectors_dict = set_ins_parameters(ask_vectors_dict, parameters)
         client_instructions = client_ins_from_ins_dict(ask_vectors_dict)
-        client_instructions = self.strategy.configure_fit(parameters=parameters, config=task.config, stage=3, client_instructions=client_instructions)
+        client_instructions = self.strategy.configure_fit(
+            parameters=parameters, config=task.config, stage=3, client_instructions=client_instructions
+        )
         subtask_id, subtask_status = self.communicator.fit_clients(client_instructions=client_instructions)
         success = self.strategy.wait_fit(subtask_status=subtask_status, min_waiting_time=task.config[MIN_WAITING_TIME])
-        
+
         if not success:
             self.communicator.finish_subtask(subtask_id)
-            task.config.update({METRICS: {},})
+            task.config.update(
+                {
+                    METRICS: {},
+                }
+            )
             return parameters, Report(config=task.config)
-        
+
         results = self.communicator.get_results(subtask_id)
         self.communicator.finish_subtask(subtask_id)
 
@@ -163,22 +166,34 @@ class SecAggServerLogic(ServerLogic):
         # pass dummy parameters via gRPC
         unmask_vectors_dict = set_ins_parameters(unmask_vectors_dict, Parameters(tensors=[], tensor_type=""))
         client_instructions = client_ins_from_ins_dict(unmask_vectors_dict)
-        client_instructions = self.strategy.configure_fit(parameters=parameters, config=task.config, stage=4, client_instructions=client_instructions)
+        client_instructions = self.strategy.configure_fit(
+            parameters=parameters, config=task.config, stage=4, client_instructions=client_instructions
+        )
         subtask_id, subtask_status = self.communicator.fit_clients(client_instructions=client_instructions)
         success = self.strategy.wait_fit(subtask_status=subtask_status, min_waiting_time=task.config[MIN_WAITING_TIME])
-        
+
         if not success:
             self.communicator.finish_subtask(subtask_id)
-            task.config.update({METRICS: {},})
+            task.config.update(
+                {
+                    METRICS: {},
+                }
+            )
             return parameters, Report(config=task.config)
-        
+
         results = self.communicator.get_results(subtask_id)
         self.communicator.finish_subtask(subtask_id)
 
-        parameters_aggregated = unmask_vector(unmask_vectors_dict, ask_vectors_dict, masked_vectors, results, sec_agg_param_dict)
+        parameters_aggregated = unmask_vector(
+            unmask_vectors_dict, ask_vectors_dict, masked_vectors, results, sec_agg_param_dict
+        )
         task.config.update({METRICS: metrics})
         self.metrics_handler.update_metrics_fit(task.config)
-        task.config.update({METRICS: metrics,})
+        task.config.update(
+            {
+                METRICS: metrics,
+            }
+        )
 
         return parameters_aggregated, Report(config=task.config)
 
@@ -192,83 +207,102 @@ class SecAggServerLogic(ServerLogic):
         subtask_id, subtask_status = self.communicator.evaluate_clients(client_instructions)
         if self.strategy.wait_evaluate(subtask_status=subtask_status, min_waiting_time=task.config[MIN_WAITING_TIME]):
             # success
-            results = self.communicator.get_results(subtask_id) + self.communicator.get_results_roaming(tid=task.config[TID], is_fit=False)
+            results = self.communicator.get_results(subtask_id) + self.communicator.get_results_roaming(
+                tid=task.config[TID], is_fit=False
+            )
             self.communicator.finish_subtask(subtask_id)
             metrics = self.strategy.aggregate_evaluate(results=results)
             task.config.update({METRICS: metrics})
             self.metrics_handler.update_metrics_evaluate(task.config)
-            task.config.update({METRICS: metrics,})
+            task.config.update(
+                {
+                    METRICS: metrics,
+                }
+            )
         else:
             self.communicator.finish_subtask(subtask_id)
-            task.config.update({METRICS: {},})
+            task.config.update(
+                {
+                    METRICS: {},
+                }
+            )
         return Report(config=task.config)
 
 
 def set_ins_parameters(
     ins_dict: Dict[int, Tuple[ClientProxy, FitIns]],
-    parameters = Parameters,
+    parameters=Parameters,
 ) -> Dict[int, Tuple[ClientProxy, FitIns]]:
+    """Set the parameters field for all instructions in the dict."""
     for key, _ in ins_dict.items():
         ins_dict[key][1].parameters = parameters
-    return ins_dict 
+    return ins_dict
+
 
 def set_ins_stage(
     ins_dict: Dict[int, Tuple[ClientProxy, FitIns]],
     proto_value: int,
 ) -> Dict[int, Tuple[ClientProxy, FitIns]]:
+    """Set the SecAgg protocol stage for all instructions in the dict."""
     for key, _ in ins_dict.items():
         ins_dict[key][1].config[PROTO_KEY] = proto_value
     return ins_dict
 
-def process_sec_agg_param_dict(
-    sec_agg_param_dict: Dict[str, Scalar],
-    participant_num: int
-) -> Dict[str, Scalar]:
+
+def process_sec_agg_param_dict(sec_agg_param_dict: Dict[str, Scalar], participant_num: int) -> Dict[str, Scalar]:
+    """Validate and fill in default values for the SecAgg parameter dictionary."""
     sec_agg_param_dict["participant_num"] = participant_num
     # min_num will be replaced with intended min_num based on participant_num
     # if both min_frac or min_num not provided, we take maximum of either 2 or 0.9 * participant_num
     # if either one is provided, we use that
     # Otherwise, we take the maximum
     # Note we will eventually check whether min_num>=2
-    if 'min_frac' not in sec_agg_param_dict:
-        if 'min_num' not in sec_agg_param_dict:
-            sec_agg_param_dict['min_num'] = max(
-                2, int(0.9*sec_agg_param_dict['participant_num']))
+    if "min_frac" not in sec_agg_param_dict:
+        if "min_num" not in sec_agg_param_dict:
+            sec_agg_param_dict["min_num"] = max(2, int(0.9 * sec_agg_param_dict["participant_num"]))
     else:
-        if 'min_num' not in sec_agg_param_dict:
-            sec_agg_param_dict['min_num'] = int(
-                sec_agg_param_dict['min_frac']*sec_agg_param_dict['participant_num'])
+        if "min_num" not in sec_agg_param_dict:
+            sec_agg_param_dict["min_num"] = int(sec_agg_param_dict["min_frac"] * sec_agg_param_dict["participant_num"])
         else:
-            sec_agg_param_dict['min_num'] = max(sec_agg_param_dict['min_num'], int(
-                sec_agg_param_dict['min_frac']*sec_agg_param_dict['participant_num']))
+            sec_agg_param_dict["min_num"] = max(
+                sec_agg_param_dict["min_num"],
+                int(sec_agg_param_dict["min_frac"] * sec_agg_param_dict["participant_num"]),
+            )
 
-    if 'share_num' not in sec_agg_param_dict:
+    if "share_num" not in sec_agg_param_dict:
         # Complete graph
-        sec_agg_param_dict['share_num'] = sec_agg_param_dict['participant_num']
-    elif sec_agg_param_dict['share_num'] % 2 == 0 and sec_agg_param_dict['share_num'] != sec_agg_param_dict['participant_num']:
+        sec_agg_param_dict["share_num"] = sec_agg_param_dict["participant_num"]
+    elif (
+        sec_agg_param_dict["share_num"] % 2 == 0
+        and sec_agg_param_dict["share_num"] != sec_agg_param_dict["participant_num"]
+    ):
         # we want share_num of each node to be either odd or participant_num
-        log(WARNING, "share_num value changed due to participant_num and share_num constraints! See documentation for reason")
-        sec_agg_param_dict['share_num'] += 1
+        log(
+            WARNING,
+            "share_num value changed due to participant_num and share_num constraints! See documentation for reason",
+        )
+        sec_agg_param_dict["share_num"] += 1
 
-    if 'threshold' not in sec_agg_param_dict:
-        sec_agg_param_dict['threshold'] = max(
-            2, int(sec_agg_param_dict['share_num'] * 0.9))
+    if "threshold" not in sec_agg_param_dict:
+        sec_agg_param_dict["threshold"] = max(2, int(sec_agg_param_dict["share_num"] * 0.9))
 
     # Maximum number of data volumes set to 1000
-    if 'max_weights_factor' not in sec_agg_param_dict:
-        sec_agg_param_dict['max_weights_factor'] = 1000
+    if "max_weights_factor" not in sec_agg_param_dict:
+        sec_agg_param_dict["max_weights_factor"] = 1000
 
     # Quantization parameters
-    if 'clipping_range' not in sec_agg_param_dict:
-        sec_agg_param_dict['clipping_range'] = 3
+    if "clipping_range" not in sec_agg_param_dict:
+        sec_agg_param_dict["clipping_range"] = 3
 
-    if 'target_range' not in sec_agg_param_dict:
-        sec_agg_param_dict['target_range'] = 10000
+    if "target_range" not in sec_agg_param_dict:
+        sec_agg_param_dict["target_range"] = 10000
 
-    if 'mod_range' not in sec_agg_param_dict:
-        sec_agg_param_dict['mod_range'] = sec_agg_param_dict['participant_num'] * \
-            sec_agg_param_dict['target_range'] * \
-            sec_agg_param_dict['max_weights_factor']
+    if "mod_range" not in sec_agg_param_dict:
+        sec_agg_param_dict["mod_range"] = (
+            sec_agg_param_dict["participant_num"]
+            * sec_agg_param_dict["target_range"]
+            * sec_agg_param_dict["max_weights_factor"]
+        )
 
     log(
         INFO,
@@ -277,34 +311,44 @@ def process_sec_agg_param_dict(
     )
 
     assert (
-        sec_agg_param_dict['participant_num'] >= 2
-        and sec_agg_param_dict['min_num'] >= 2
-        and sec_agg_param_dict['participant_num'] >= sec_agg_param_dict['min_num']
-        and sec_agg_param_dict['share_num'] <= sec_agg_param_dict['participant_num']
-        and sec_agg_param_dict['threshold'] <= sec_agg_param_dict['share_num']
-        and sec_agg_param_dict['threshold'] >= 2
-        and (sec_agg_param_dict['share_num'] % 2 == 1 or sec_agg_param_dict['share_num'] == sec_agg_param_dict['participant_num'])
-        and sec_agg_param_dict['target_range']*sec_agg_param_dict['participant_num']*sec_agg_param_dict['max_weights_factor'] <= sec_agg_param_dict['mod_range']
+        sec_agg_param_dict["participant_num"] >= 2
+        and sec_agg_param_dict["min_num"] >= 2
+        and sec_agg_param_dict["participant_num"] >= sec_agg_param_dict["min_num"]
+        and sec_agg_param_dict["share_num"] <= sec_agg_param_dict["participant_num"]
+        and sec_agg_param_dict["threshold"] <= sec_agg_param_dict["share_num"]
+        and sec_agg_param_dict["threshold"] >= 2
+        and (
+            sec_agg_param_dict["share_num"] % 2 == 1
+            or sec_agg_param_dict["share_num"] == sec_agg_param_dict["participant_num"]
+        )
+        and sec_agg_param_dict["target_range"]
+        * sec_agg_param_dict["participant_num"]
+        * sec_agg_param_dict["max_weights_factor"]
+        <= sec_agg_param_dict["mod_range"]
     ), "SecAgg parameters not accepted"
     return sec_agg_param_dict
 
+
 def initialize_ins_dict(
-    client_instructions = List[Tuple[ClientProxy, FitIns]],
+    client_instructions=List[Tuple[ClientProxy, FitIns]],
 ) -> Dict[int, Tuple[ClientProxy, FitIns]]:
+    """Build an indexed instruction dict from a list of client instructions."""
     ins_dict: Dict[int, Tuple[ClientProxy, FitIns]] = {}
     for idx, value in enumerate(client_instructions):
         ins = value[0], FitIns(value[1].parameters, value[1].config.copy())
         ins_dict[idx] = ins
     return ins_dict
 
+
 def next_ins_dict(
     ins_dict: Dict[int, Tuple[ClientProxy, FitIns]],
     results: List[Tuple[ClientProxy, FitRes]],
 ) -> Dict[int, Tuple[ClientProxy, FitIns]]:
-    next_ins_dict = {}
+    """Build the next instruction dict retaining only clients that returned results."""
+    new_ins_dict = {}
     for idx, ins in ins_dict.items():
         if ins[0].cid in [result[0].cid for result in results]:
-            next_ins_dict[idx] = ins
+            new_ins_dict[idx] = ins
             for i in [
                 SEC_AGG_PARAM_DICT,
                 PUBLIC_KEYS,
@@ -315,51 +359,58 @@ def next_ins_dict(
                 SHARE_RESPONSE,
             ]:
                 try:
-                    del next_ins_dict[idx][1].config[i]
+                    del new_ins_dict[idx][1].config[i]
                 except:
                     pass
-    return next_ins_dict
+    return new_ins_dict
+
 
 def client_ins_from_ins_dict(
     ins_dict: Dict[int, Tuple[ClientProxy, FitIns]],
 ) -> List[Tuple[ClientProxy, FitIns]]:
+    """Convert an indexed instruction dict to a flat list of client instructions."""
     return [ins for _, ins in ins_dict.items()]
+
 
 def check_enough_shares(
     share_list: List[bytes],
     sec_agg_param_dict: Dict,
 ) -> None:
-    if len(share_list) < sec_agg_param_dict['threshold']:
-        raise Exception(
-            "Not enough shares to recover secret in unmask vectors stage"
-        )
+    """Raise an exception if the number of shares is below the threshold."""
+    if len(share_list) < sec_agg_param_dict["threshold"]:
+        raise Exception("Not enough shares to recover secret in unmask vectors stage")
+
 
 def get_sec_agg_param_dict(
     task: Task,
     num_instructions: int,
 ) -> Dict[int, Tuple[ClientProxy, FitIns]]:
-    sec_agg_param_dict = task.config[SEC_AGG_PARAM_DICT] \
-        if task.config.__contains__(SEC_AGG_PARAM_DICT) else {}
+    """Extract and process the SecAgg parameter dict from a task config."""
+    sec_agg_param_dict = task.config[SEC_AGG_PARAM_DICT] if task.config.__contains__(SEC_AGG_PARAM_DICT) else {}
     sec_agg_param_dict = process_sec_agg_param_dict(sec_agg_param_dict, num_instructions)
     return sec_agg_param_dict
+
 
 def set_sec_agg_param_dict(
     ins_dict: Dict[int, Tuple[ClientProxy, FitIns]],
     sec_agg_param_dict: Dict,
 ) -> Dict[int, Tuple[ClientProxy, FitIns]]:
+    """Embed the SecAgg parameter dict (with per-client ID) into each instruction."""
     for key, _ in ins_dict.items():
         tmp = sec_agg_param_dict.copy()
         tmp["sec_agg_id"] = key
         ins_dict[key][1].config[SEC_AGG_PARAM_DICT] = tmp
     return ins_dict
 
+
 def set_pks_dict(
     ins_dict: Dict[int, Tuple[ClientProxy, FitIns]],
     results: List[Tuple[ClientProxy, FitRes]],
 ) -> Dict[int, Tuple[ClientProxy, FitIns]]:
+    """Distribute the public key list from results into each client's instruction config."""
     pks_dict = {}
     for result in results:
-        for idx, ins in ins_dict.items():    
+        for idx, ins in ins_dict.items():
             if ins[0].cid == result[0].cid:
                 pks_dict[idx] = result[1].config[PUBLIC_KEYS]
                 break
@@ -368,16 +419,18 @@ def set_pks_dict(
 
     return ins_dict
 
+
 def set_packet_list(
     ins_dict: Dict[int, Tuple[ClientProxy, FitIns]],
     results: List[Tuple[ClientProxy, FitRes]],
 ) -> Dict[int, Tuple[ClientProxy, FitIns]]:
+    """Forward share-key packets from results to the appropriate client instructions."""
     total_packet_list: List[dict] = []
     for _, ins in ins_dict.items():
         pos = [result[0].cid for result in results].index(ins[0].cid)
         packet_list = results[pos][1].config[SHARE_KEYS_PACKETS]
         total_packet_list += packet_list
-    
+
     for idx, _ in ins_dict.items():
         ins_dict[idx][1].config[FORWARD_PACKETS] = []
 
@@ -388,36 +441,39 @@ def set_packet_list(
 
     return ins_dict
 
+
 def aggregate_fit(
     results: List[Tuple[ClientProxy, FitRes]],
 ) -> Tuple[NDArrays, Dict]:
+    """Sum masked model vectors and aggregate fit metrics from client results."""
     # Get shape of vector sent by first client
     masked_vectors = primitives.weights_zero_generate(
         [i.shape for i in parameters_to_ndarrays(results[0][1].parameters)]
     )
     for result in results:
-        masked_vectors = primitives.weights_addition(
-            masked_vectors, parameters_to_ndarrays(result[1].parameters)
-        )
+        masked_vectors = primitives.weights_addition(masked_vectors, parameters_to_ndarrays(result[1].parameters))
 
     metrics_aggregated = {DATA_SAMPLES: sum([fit_res.config[METRICS][DATA_SAMPLES] for _, fit_res in results])}
-    
+
     return masked_vectors, metrics_aggregated
+
 
 def set_surviving_info(
     survivals_dict: Dict[int, Tuple[ClientProxy, FitIns]],
     participants_dict: Dict[int, Tuple[ClientProxy, FitIns]],
 ) -> Dict[int, Tuple[ClientProxy, FitIns]]:
+    """Attach survival and dropout information to each surviving client's instruction."""
     survivals = [idx for idx, _ in survivals_dict.items()]
     dropouts = []
     for idx, _ in participants_dict.items():
         if idx not in survivals:
             dropouts.append(idx)
     share_request: dict = ShareRequest(survivals=survivals, dropouts=dropouts).to_dict()
-    
+
     for idx, _ in survivals_dict.items():
         survivals_dict[idx][1].config[SHARE_REQUEST] = share_request
     return survivals_dict
+
 
 def unmask_vector(
     survivals_dict: Dict[int, Tuple[ClientProxy, FitIns]],
@@ -426,6 +482,7 @@ def unmask_vector(
     results: List[Tuple[ClientProxy, FitRes]],
     sec_agg_param_dict: Dict,
 ) -> Parameters:
+    """Reconstruct and return the aggregated model parameters by removing all masks."""
     collected_shares_dict: Dict[int, List[bytes]] = {}
     for idx in participants_dict.keys():
         collected_shares_dict[idx] = []
@@ -433,7 +490,7 @@ def unmask_vector(
     for result in results:
         for owner_id, share in result[1].config[SHARE_RESPONSE]["share_dict"].items():
             collected_shares_dict[owner_id].append(share)
-    
+
     # Remove masks
     for client_id, share_list in collected_shares_dict.items():
         check_enough_shares(share_list, sec_agg_param_dict)
@@ -443,7 +500,7 @@ def unmask_vector(
         if client_id in survivals_dict.keys():
             # unmask b
             mask_b = primitives.pseudo_rand_gen(
-                secret, sec_agg_param_dict['mod_range'], primitives.weights_shape(masked_vectors)
+                secret, sec_agg_param_dict["mod_range"], primitives.weights_shape(masked_vectors)
             )
             masked_vectors = primitives.weights_subtraction(masked_vectors, mask_b)
         else:
@@ -451,15 +508,15 @@ def unmask_vector(
             # get neighbor_list
             # neighbor is a client with whom "client_id" shared its key-shares
             neighbor_list: List[int] = []
-            if sec_agg_param_dict['share_num'] == sec_agg_param_dict['participant_num']:
+            if sec_agg_param_dict["share_num"] == sec_agg_param_dict["participant_num"]:
                 # SecAgg
                 # share with all other clients
                 neighbor_list = list(participants_dict.keys())
                 neighbor_list.remove(client_id)
             else:
                 # SecAgg+
-                for i in range(-int(sec_agg_param_dict['share_num'] / 2), int(sec_agg_param_dict['share_num'] / 2) + 1):
-                    neighbor_id = (i + client_id) % sec_agg_param_dict['participant_num']
+                for i in range(-int(sec_agg_param_dict["share_num"] / 2), int(sec_agg_param_dict["share_num"] / 2) + 1):
+                    neighbor_id = (i + client_id) % sec_agg_param_dict["participant_num"]
                     if i != 0 and neighbor_id in participants_dict.keys():
                         neighbor_list.append(neighbor_id)
             # unmask sk1
@@ -469,23 +526,17 @@ def unmask_vector(
                     primitives.bytes_to_public_key(participants_dict[neighbor_id][1].config[PUBLIC_KEYS]["pk1"]),
                 )
                 pairwise_mask = primitives.pseudo_rand_gen(
-                    shared_key, sec_agg_param_dict['mod_range'], primitives.weights_shape(masked_vectors)
+                    shared_key, sec_agg_param_dict["mod_range"], primitives.weights_shape(masked_vectors)
                 )
                 if client_id > neighbor_id:
-                    masked_vectors = primitives.weights_addition(
-                        masked_vectors, pairwise_mask
-                    )
+                    masked_vectors = primitives.weights_addition(masked_vectors, pairwise_mask)
                 else:
-                    masked_vectors = primitives.weights_subtraction(
-                        masked_vectors, pairwise_mask
-                    )
-    masked_vectors = primitives.weights_mod(
-        masked_vectors, sec_agg_param_dict['mod_range']
-    )
+                    masked_vectors = primitives.weights_subtraction(masked_vectors, pairwise_mask)
+    masked_vectors = primitives.weights_mod(masked_vectors, sec_agg_param_dict["mod_range"])
     total_weights_factor, masked_vectors = primitives.factor_weights_extract(masked_vectors)
     masked_vectors = primitives.weights_divide(masked_vectors, total_weights_factor)
     aggregated_vector = primitives.reverse_quantize(
-        masked_vectors, sec_agg_param_dict['clipping_range'], sec_agg_param_dict['target_range']
+        masked_vectors, sec_agg_param_dict["clipping_range"], sec_agg_param_dict["target_range"]
     )
     aggregated_parameters = ndarrays_to_parameters(aggregated_vector)
     return aggregated_parameters

@@ -53,50 +53,52 @@ def bytes_to_ndarray(tensor: bytes) -> NDArray:
     ndarray_deserialized = np.load(bytes_io, allow_pickle=False)  # type: ignore
     return cast(NDArray, ndarray_deserialized)
 
+
 def encode_ndarrays(weights: NDArrays) -> str:
     """Encode NDArrays to str."""
     en_weights = ""
     num_layers = len(weights)
-    en_weights = en_weights + str(num_layers) + '[nlayers]'
+    en_weights = en_weights + str(num_layers) + "[nlayers]"
     for j in range(num_layers):
         shape = ""
-        for k in range(len(weights[j].shape)):
-            shape = shape + str(np.float64(weights[j].shape[k]))
+        for k, dim in enumerate(weights[j].shape):
+            shape = shape + str(np.float64(dim))
             if k != (len(weights[j].shape) - 1):
-                shape = shape + ','
+                shape = shape + ","
         reshaped = weights[j].reshape(-1)
         w_layer = ""
-        for m in range(len(reshaped)):
-            w_layer = w_layer + str(reshaped[m])
-            if m != (len(reshaped)-1):
-                 w_layer = w_layer + " "
+        for m, val in enumerate(reshaped):
+            w_layer = w_layer + str(val)
+            if m != (len(reshaped) - 1):
+                w_layer = w_layer + " "
 
-        layer_info = shape + '[shape]' + w_layer
-        if j != num_layers-1:
-            en_weights = en_weights + layer_info + '[layer_info]'
+        layer_info = shape + "[shape]" + w_layer
+        if j != num_layers - 1:
+            en_weights = en_weights + layer_info + "[layer_info]"
         else:
             en_weights = en_weights + layer_info
     return en_weights
 
+
 def decode_ndarrays(parameter: str) -> NDArrays:
     """Decode str to NDArrays."""
-    weight_result_list = list()
+    weight_result_list = []
     num_layers, l = parameter.split("[nlayers]")
-    all_layer_info = l.split("[layer_info]") 
+    all_layer_info = l.split("[layer_info]")
     for j in range(int(num_layers)):
         shape, w_layer = all_layer_info[j].split("[shape]")
         if "," in shape:
-            shape_list = shape.split(',')
-            for k in range(len(shape_list)):
-                shape_list[k] = int(float(shape_list[k]))
+            shape_list = shape.split(",")
+            for k, val in enumerate(shape_list):
+                shape_list[k] = int(float(val))
             shape = tuple(shape_list)
-        else:    
-            shape = (int(float(shape)), )
-        
+        else:
+            shape = (int(float(shape)),)
+
         w_layer_list = w_layer.split(" ")
         weight = np.ndarray(shape=(0), dtype=float)
-        for m in range(len(w_layer_list)):
-            weight = np.append(weight, np.array([np.float64(w_layer_list[m])]))
+        for val in w_layer_list:
+            weight = np.append(weight, np.array([np.float64(val)]))
         weight = np.reshape(weight, shape)
         weight_result_list.append(weight)
     return weight_result_list

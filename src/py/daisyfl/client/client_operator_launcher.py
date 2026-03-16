@@ -12,45 +12,48 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from daisyfl.utils.logger import log, ERROR
-from dataclasses import dataclass
-from typing import List, Tuple, Union, Dict, Optional, Callable
-from daisyfl.utils.dynamic_loader import dynamic_load
-from daisyfl.operator import ClientLogic
-from daisyfl.common import (
-    Parameters,
-    Task,
-    Report,
-    FitIns,
-    FitRes,
-    EvaluateIns,
-    EvaluateRes,
-    TID,
-    OPERATORS,
-    STRATEGIES,
-    CLIENT_OPERATOR,
-    Status,
-    ErrorCode,
-)
+"""Launcher for dynamically loading and managing client operators per task."""
+from typing import Callable, Dict, Optional
 
 from daisyfl.client.trainer import Trainer
+from daisyfl.common import (
+    CLIENT_OPERATOR,
+    OPERATORS,
+    TID,
+    ErrorCode,
+    EvaluateIns,
+    EvaluateRes,
+    FitIns,
+    FitRes,
+    Parameters,
+    Status,
+)
+from daisyfl.operator import ClientLogic
+from daisyfl.utils.dynamic_loader import dynamic_load
+from daisyfl.utils.logger import ERROR, log
 
 
 class ClientOperatorLauncher:
     """Initialize and manage client operators."""
 
-    def __init__(self, trainer: Trainer, server_address: str,):
+    def __init__(
+        self,
+        trainer: Trainer,
+        server_address: str,
+    ):
+        """Initialize ClientOperatorLauncher with a trainer and server address."""
         self.trainer: Trainer = trainer
         self.server_address = server_address
         self.operators: Dict[ClientLogic] = {}
         self.operator_key = CLIENT_OPERATOR
+        self._get_anchor_fn: Optional[Callable] = None
+        self._handover_fn: Optional[Callable] = None
 
     def fit(
-        self, ins: FitIns,
+        self,
+        ins: FitIns,
     ) -> FitRes:
-        """
-        Method called by MessageHandler to fit a FL model for a round of communication.
-        """
+        """Method called by MessageHandler to fit a FL model for a round of communication."""
         client_operator: Optional[ClientLogic] = self._get_client_operator(tid=ins.config[TID])
         if client_operator is None:
             if self._register_operator(ins.config):
@@ -61,14 +64,13 @@ class ClientOperatorLauncher:
                     parameters=Parameters(tensors=[], tensor_type=""),
                     config=ins.config,
                 )
-        return  client_operator.fit(ins)
+        return client_operator.fit(ins)
 
     def evaluate(
-        self, ins: EvaluateIns,
+        self,
+        ins: EvaluateIns,
     ) -> EvaluateRes:
-        """
-        Method called by MessageHandler to evaluate a FL model for a round of communication.
-        """
+        """Method called by MessageHandler to evaluate a FL model for a round of communication."""
         client_operator: Optional[ClientLogic] = self._get_client_operator(tid=ins.config[TID])
 
         if client_operator is None:
@@ -76,44 +78,41 @@ class ClientOperatorLauncher:
                 client_operator: Optional[ClientLogic] = self._get_client_operator(tid=ins.config[TID])
             else:
                 return EvaluateRes(
-                    status=Status(error_code=ErrorCode.EVALUATE_NOT_IMPLEMENTED, message="Operator initialization fail"),
+                    status=Status(
+                        error_code=ErrorCode.EVALUATE_NOT_IMPLEMENTED, message="Operator initialization fail"
+                    ),
                     config=ins.config,
                 )
         return client_operator.evaluate(ins)
 
-    def set_handover_fn(self, handover_fn: Callable=None) -> None:
-        """
-        Set callback function to bridge the handover function, which
-        will be used by ClientOperators.
-        """
+    def set_handover_fn(self, handover_fn: Callable = None) -> None:
+        """Set callback function to bridge the handover function, which will be used by ClientOperators."""
         self._handover_fn = handover_fn
-    
-    def set_get_anchor_fn(self, get_anchor_fn: Callable=None) -> None:
-        """
-        Set callback function to bridge the get_anchor function, which
-        will be used by ClientOperators.
-        """
+
+    def set_get_anchor_fn(self, get_anchor_fn: Callable = None) -> None:
+        """Set callback function to bridge the get_anchor function, which will be used by ClientOperators."""
         self._get_anchor_fn = get_anchor_fn
 
     def _get_client_operator(self, tid: str) -> Optional[ClientLogic]:
         if self.operators.__contains__(tid):
             return self.operators[tid]
         return None
-    
+
     def _register_operator(self, config: Dict) -> bool:
         tid = config[TID]
         operator_path = config[OPERATORS][self.operator_key]
 
         try:
             operator: ClientLogic = dynamic_load(operator_path[0], operator_path[1])
-            op_instance = operator(trainer=self.trainer, get_anchor_fn=self._get_anchor_fn, handover_fn=self._handover_fn)
+            op_instance = operator(
+                trainer=self.trainer, get_anchor_fn=self._get_anchor_fn, handover_fn=self._handover_fn
+            )
             self.operators[tid] = op_instance
             return True
         except:
-            log(ERROR, "Can't load Class \"{}\" from \"{}\".".format(operator_path[1], operator_path[0]))
+            log(ERROR, 'Can\'t load Class "%s" from "%s".', operator_path[1], operator_path[0])
             return False
-    
+
     def _unregister_operator(self, tid: str) -> None:
         if self.operators.__contains__(tid):
             del self.operators[tid]
-

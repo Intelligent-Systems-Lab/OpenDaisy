@@ -16,9 +16,10 @@
 
 
 from dataclasses import dataclass
-from dataclasses_json import dataclass_json
-from typing import Dict, List
 from enum import Enum
+from typing import Dict, List
+
+from dataclasses_json import DataClassJsonMixin
 
 # check stage
 PROTO_KEY = "PROTO_KEY"
@@ -35,38 +36,46 @@ FORWARD_PACKETS = "FORWARD_PACKETS"
 # stage 4 ins
 SHARE_REQUEST = "SHARE_REQUEST"
 # stage 4 res
-SHARE_RESPONSE = "SHARE_RESPONSE" 
+SHARE_RESPONSE = "SHARE_RESPONSE"
 
 
 class Proto(Enum):
     """Type of the SecAgg stages."""
-    
+
     SETUP = 0
     ASK_KEYS = 1
     SHARE_KEYS = 2
     ASK_VECTORS = 3
     UNMASK_VECTORS = 4
 
-@dataclass_json
+
 @dataclass
-class PublicKeys:
+class PublicKeys(DataClassJsonMixin):
+    """Holds a client's two elliptic curve public keys for SecAgg."""
+
     pk1: bytes
     pk2: bytes
 
-@dataclass_json
+
 @dataclass
-class ShareKeysPacket:
+class ShareKeysPacket(DataClassJsonMixin):
+    """Encrypted key-share packet sent from one client to another."""
+
     source: int
     destination: int
     ciphertext: bytes
 
-@dataclass_json
+
 @dataclass
-class ShareRequest:
+class ShareRequest(DataClassJsonMixin):
+    """Identifies surviving and dropped-out clients for the unmask-vectors stage."""
+
     survivals: List[int]
     dropouts: List[int]
-    
-@dataclass_json
+
+
 @dataclass
-class ShareResponse:
+class ShareResponse(DataClassJsonMixin):
+    """Maps each client ID to the secret share that client returned for unmasking."""
+
     share_dict: Dict[int, bytes]

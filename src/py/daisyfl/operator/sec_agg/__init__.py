@@ -13,8 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Secure aggregation operators."""
-from .sec_agg_server_logic import SecAggServerLogic as SecAggServerLogic
 from .sec_agg_client_logic import SecAggClientLogic as SecAggClientLogic
+from .sec_agg_server_logic import SecAggServerLogic as SecAggServerLogic
 
 __all__ = [
     "SecAggServerLogic",

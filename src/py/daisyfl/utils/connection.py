@@ -12,25 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Utilities for building gRPC connections to parent nodes."""
 
 from contextlib import contextmanager
-from typing import Callable, Iterator, Any, Dict, Tuple, Optional
+from queue import Queue
+from typing import Callable, Iterator, Optional, Tuple
+
 import grpc
 from iterators import TimeoutIterator
+
+from daisyfl.common import GRPC_MAX_MESSAGE_LENGTH, ErrorCode, FitRes, Parameters, Status
 from daisyfl.proto.transport_pb2 import ClientMessage, ServerMessage
-from .logger import log
-from . import daisyfl_serde
-from daisyfl.utils.logger import INFO, WARNING, DEBUG, ERROR
-from daisyfl.common import (
-    GRPC_MAX_MESSAGE_LENGTH, 
-    ErrorCode,
-    Status,
-    FitRes,
-    Parameters,
-)
 from daisyfl.proto.transport_pb2_grpc import DaisyServiceStub
-from queue import Queue
-    
+from daisyfl.utils.logger import DEBUG, INFO
+
+from . import daisyfl_serde
+from .logger import log
+
+
 @contextmanager
 def grpc_connection(
     parent_address: str,
@@ -47,16 +46,14 @@ def grpc_connection(
 
     if uplink_certificates is not None:
         ssl_channel_credentials = grpc.ssl_channel_credentials(uplink_certificates)
-        channel = grpc.secure_channel(
-            parent_address, ssl_channel_credentials, options=channel_options
-        )
+        channel = grpc.secure_channel(parent_address, ssl_channel_credentials, options=channel_options)
         log(INFO, "Opened secure gRPC connection using certificates")
     else:
         channel = grpc.insecure_channel(parent_address, options=channel_options)
         log(INFO, "Opened insecure gRPC connection (no certificates were passed)")
 
     channel.subscribe(lambda channel_connectivity: log(DEBUG, channel_connectivity))
-    
+
     stub = DaisyServiceStub(channel)
     queue: Queue[ClientMessage] = Queue(maxsize=1)
     time_iterator = TimeoutIterator(iterator=iter(queue.get, None), reset_on_next=True)
@@ -71,8 +68,11 @@ def grpc_connection(
         if server_message is timeout_iterator.get_sentinel():
             return server_message, False
         return server_message, True
+
     receive: Callable[[Optional[int]], Tuple[ServerMessage, bool]] = receive_fn
-    send: Callable[[ClientMessage], None] = lambda msg: queue.put(msg, block=False)
+
+    def send(msg: ClientMessage) -> None:
+        queue.put(msg, block=False)
 
     try:
         yield send, receive
@@ -81,11 +81,16 @@ def grpc_connection(
         time_iterator.interrupt()
         # Send an arbitrary ClientMessage to interrupt the iterator
         send(
-            ClientMessage(fit_res=daisyfl_serde.fit_res_to_proto(FitRes(
-            status=Status(error_code=ErrorCode.OK, message="Success"),
-            parameters=Parameters(tensors=[], tensor_type=""),
-            config={},
-        ))))
+            ClientMessage(
+                fit_res=daisyfl_serde.fit_res_to_proto(
+                    FitRes(
+                        status=Status(error_code=ErrorCode.OK, message="Success"),
+                        parameters=Parameters(tensors=[], tensor_type=""),
+                        config={},
+                    )
+                )
+            )
+        )
         # Make sure to have a final
         channel.close()
         log(DEBUG, "gRPC channel closed")

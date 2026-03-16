@@ -32,8 +32,8 @@
 
 from .app import start_client as start_client
 from .app import start_client_numpy as start_client_numpy
-from .trainer import Trainer as Trainer
 from .numpy_trainer import NumPyTrainer as NumPyTrainer
+from .trainer import Trainer as Trainer
 
 __all__ = [
     "Trainer",

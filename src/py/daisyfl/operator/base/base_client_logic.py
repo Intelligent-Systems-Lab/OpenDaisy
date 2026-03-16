@@ -12,31 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from typing import List, Optional, Callable
-from daisyfl.common import (
-    FitIns,
-    FitRes,
-    EvaluateIns,
-    EvaluateRes,
-)
+"""Base client logic for standard synchronous federated learning."""
+
+from daisyfl.common import EvaluateIns, EvaluateRes, FitIns, FitRes
+
 from ..client_logic import ClientLogic
+
 
 class BaseClientLogic(ClientLogic):
     """Base Daisy Client operational logic definition."""
 
-    def __init__(self, trainer, get_anchor_fn: Callable, handover_fn: Callable,) -> None:
-        self.trainer = trainer
-        self.get_anchor_fn = get_anchor_fn
-        self.handover_fn = handover_fn
-    
     def fit(
-        self, ins: FitIns,
+        self,
+        ins: FitIns,
     ) -> FitRes:
         """Define the operation before and after client fit the local model."""
         return self.trainer.fit(ins)
 
     def evaluate(
-        self, ins: EvaluateIns,
+        self,
+        ins: EvaluateIns,
     ) -> EvaluateRes:
         """Define the operation before and after client evaluate the local model."""
         return self.trainer.evaluate(ins)

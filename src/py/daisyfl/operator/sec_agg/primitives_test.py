@@ -227,4 +227,3 @@ def test_all():
     test_quantize()
     test_factor_weights_operations()
     test_weights_manipulation()
-    

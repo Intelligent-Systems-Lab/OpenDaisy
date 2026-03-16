@@ -15,13 +15,12 @@
 """Handle metrics update and exposure."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple, Callable, Optional
-from daisyfl.utils.logger import DEBUG, INFO, ERROR, WARNING
-from daisyfl.utils.logger import log
+from typing import Dict
+
 
 class MetricsHandler(ABC):
     """Abstract base class for coping with metrics update and exposure."""
-    
+
     @abstractmethod
     def update_metrics_fit(self, config: Dict):
         """Update fitting metrics."""
@@ -29,9 +28,11 @@ class MetricsHandler(ABC):
     @abstractmethod
     def update_metrics_evaluate(self, config: Dict):
         """Update evaluation metrics."""
-    
+
     @abstractmethod
-    def get_metrics(self,):
+    def get_metrics(
+        self,
+    ):
         """Expose metrics through API gateway."""
 
     @abstractmethod

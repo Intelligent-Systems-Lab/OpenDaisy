@@ -30,19 +30,17 @@
 """Daisy client app."""
 
 
-from queue import Queue
-from daisyfl.utils.logger import INFO, ERROR, WARNING
-from typing import Callable, Dict, Optional, Union, Tuple, List
-from daisyfl.common import (
-    GRPC_MAX_MESSAGE_LENGTH,
-)
-from daisyfl.utils.logger import log
+import sys
+from typing import Optional, Tuple
 
-from .trainer import Trainer
+from daisyfl.client.client_operator_launcher import ClientOperatorLauncher
+from daisyfl.common import GRPC_MAX_MESSAGE_LENGTH
+from daisyfl.utils.logger import INFO, log
+
 from .client_entry import ClientEntry
 from .grpc_server.grpc_server import start_grpc_server
-from daisyfl.client.client_operator_launcher import ClientOperatorLauncher
 from .numpy_trainer import NumPyTrainer, NumPyTrainerWrapper
+from .trainer import Trainer
 
 
 def start_client(
@@ -55,11 +53,17 @@ def start_client(
     # downlink_certificates: Optional[Tuple[bytes, bytes, bytes]] = None,
     metadata: Optional[Tuple] = None,
 ) -> None:
+    """Start a Daisy client and connect it to the server."""
     # client_operator_launcher
-    client_operator_launcher = ClientOperatorLauncher(trainer=trainer, server_address=server_address,)
+    client_operator_launcher = ClientOperatorLauncher(
+        trainer=trainer,
+        server_address=server_address,
+    )
 
     # client_entry:
-    client_entry = ClientEntry(client_operator_launcher, parent_address, grpc_max_message_length, uplink_certificates, metadata)
+    client_entry = ClientEntry(
+        client_operator_launcher, parent_address, grpc_max_message_length, uplink_certificates, metadata
+    )
     client_operator_launcher.set_handover_fn(client_entry.get_handover_fn())
     client_operator_launcher.set_get_anchor_fn(client_entry.get_anchor_fn())
 
@@ -73,7 +77,7 @@ def start_client(
     # NOTE: repeat message iteration until client shutdown
     client_entry.run()
     grpc_server.stop(grace=1)
-    exit(0)
+    sys.exit(0)
 
 
 def start_client_numpy(
@@ -86,6 +90,7 @@ def start_client_numpy(
     # downlink_certificates: Optional[Tuple[bytes, bytes, bytes]] = None,
     metadata: Tuple = None,
 ) -> None:
+    """Start a Daisy client using a NumPy-based trainer."""
     # Start
     start_client(
         server_address=server_address,
@@ -96,4 +101,3 @@ def start_client_numpy(
         # downlink_certificates=downlink_certificates,
         metadata=metadata,
     )
-

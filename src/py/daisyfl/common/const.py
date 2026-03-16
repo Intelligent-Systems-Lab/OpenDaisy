@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Daisy constants."""
 
 # task
 ACCURACY = "ACCURACY"
@@ -52,6 +53,5 @@ ZONE_STRATEGY = "ZONE_STRATEGY"
 # metadata
 ANCHOR = "anchor"
 CID = "cid"
-HANDOVER= "handover"
+HANDOVER = "handover"
 UPLINK_CERTIFICATES = "uplink_certificates"
-

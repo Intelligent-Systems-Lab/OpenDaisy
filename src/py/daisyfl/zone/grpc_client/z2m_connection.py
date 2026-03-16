@@ -30,23 +30,13 @@
 """Contextmanager managing a gRPC channel to the Daisy server."""
 
 
-from contextlib import contextmanager
-from daisyfl.utils.logger import DEBUG, INFO, WARNING, ERROR
-from queue import Queue
-from typing import Callable, Iterator, Optional, Tuple, Any, Dict, List
-from daisyfl.utils.connection import grpc_connection
-from daisyfl.utils.metadata import metadata_to_dict, dict_to_metadata
-from daisyfl.utils import daisyfl_serde
-import grpc
-from threading import Condition, Event, Lock
+from threading import Condition, Event
+from typing import Callable, Optional, Tuple
 
-from daisyfl.common import (
-    GRPC_MAX_MESSAGE_LENGTH
-)
-from daisyfl.utils.logger import log
-from daisyfl.proto.transport_pb2 import ClientMessage, ServerMessage
-from daisyfl.proto.transport_pb2_grpc import DaisyServiceStub
-from iterators import TimeoutIterator
+from daisyfl.common import GRPC_MAX_MESSAGE_LENGTH
+from daisyfl.proto.transport_pb2 import ClientMessage
+from daisyfl.utils.connection import grpc_connection
+from daisyfl.utils.logger import DEBUG, INFO, WARNING, log
 
 # The following flags can be uncommented for debugging. Other possible values:
 # https://github.com/grpc/grpc/blob/master/doc/environment_variables.md
@@ -61,15 +51,17 @@ SLEEP_DURATION = 2
 class Z2MConnection:
     """Connection between Master node and Zone node."""
 
-    def __init__(self,
+    def __init__(
+        self,
         # for grpc_connection
         parent_address: str = None,
         max_message_length: int = GRPC_MAX_MESSAGE_LENGTH,
         uplink_certificates: Optional[bytes] = None,
         metadata: Tuple = (),
         # sync up with zone entry
-        zone_entry = None,
+        zone_entry=None,
     ):
+        """Initialize Z2MConnection with connection parameters and synchronization events."""
         # transmission
         self.send: Callable = None
         self.receive: Callable = None
@@ -87,8 +79,10 @@ class Z2MConnection:
         self._busy: bool = False
         # sync up with zone entry
         self._zone_entry = zone_entry
-        
-    def run(self,):
+
+    def run(
+        self,
+    ):
         """Enable connection between Master node and Zone node."""
         while True:
             # Wait for ZoneEntry ready and for reconnection
@@ -114,7 +108,10 @@ class Z2MConnection:
                 Event().wait(timeout=SLEEP_DURATION)
 
     # external APIs
-    def reconnect(self,) -> bool:
+    def reconnect(
+        self,
+    ) -> bool:
+        """Request a reconnection to the Master node."""
         with self._cnd_api:
             while self._busy:
                 self._cnd_api.wait()
@@ -122,16 +119,12 @@ class Z2MConnection:
         ###
         result = False
         if not self.event_disconn.is_set():
-            log(
-                WARNING,
-                "Try reconnecting before disconnecting. " + \
-                "Do nothing."
-            )
+            log(WARNING, "Try reconnecting before disconnecting. " + "Do nothing.")
         elif self.event_reconn.is_set():
             log(
                 WARNING,
-                "Another reconnection request has not been handled or the connection has not been built. " + \
-                "Do nothing."
+                "Another reconnection request has not been handled or the connection has not been built. "
+                "Do nothing.",
             )
         else:
             self.event_reconn.set()
@@ -142,7 +135,10 @@ class Z2MConnection:
             self._cnd_api.notify_all()
         return result
 
-    def disconnect(self,) -> bool:
+    def disconnect(
+        self,
+    ) -> bool:
+        """Request a disconnection from the Master node."""
         with self._cnd_api:
             while self._busy:
                 self._cnd_api.wait()
@@ -152,8 +148,8 @@ class Z2MConnection:
         if self.event_disconn.is_set():
             log(
                 WARNING,
-                "Another disconnection request has not been handled or the connection has not been built. " + \
-                "Do nothing."
+                "Another disconnection request has not been handled or the connection has not been built. "
+                "Do nothing.",
             )
         else:
             self.event_disconn.set()
@@ -164,5 +160,8 @@ class Z2MConnection:
             self._cnd_api.notify_all()
         return result
 
-    def get_metadata(self,) -> Tuple:
+    def get_metadata(
+        self,
+    ) -> Tuple:
+        """Return the metadata tuple associated with this connection."""
         return self._metadata

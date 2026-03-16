@@ -31,10 +31,10 @@
 
 
 from dataclasses import dataclass
-from dataclasses_json import dataclass_json
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from threading import Condition
+from typing import Any, Callable, Dict, List, Tuple, Union
+
 import numpy.typing as npt
 
 NDArray = npt.NDArray[Any]
@@ -114,13 +114,16 @@ class EvaluateRes:
 @dataclass
 class Task:
     """Task configurations are parsed and structured as this class."""
+
     config: Dict
 
 
 @dataclass
 class Report:
     """Report is used to notify TaskManager that a subtask is finished."""
+
     config: Dict
+
 
 class NodeType(Enum):
     """Types of Daisy node."""
@@ -132,11 +135,11 @@ class NodeType(Enum):
 
 @dataclass
 class SubtaskStatus:
+    """Data structure to record the status of a subtask.
+
+    Checking SubtaskStatus, we can determine if ServerOperators continuously wait for a subtask.
     """
-    Data structure to record the status of a subtask.
-    Checking SubtaskStatus, we can determine if ServerOperators
-    continuously wait for a subtask.
-    """
+
     participant_num: int
     success_num: int
     failure_num: int
@@ -147,39 +150,47 @@ class SubtaskStatus:
 @dataclass
 class ClientStatus:
     """Data structure used to synchronize the both sides of gRPC agents."""
+
     status: str
 
 
 @dataclass
 class ServerStatus:
     """Data structure used to synchronize the both sides of gRPC agents."""
+
     status: str
 
 
 @dataclass
 class ServerReceivedSignal:
     """Data structure used as an Ack to notify the client-side of gRPC agents."""
+
     status: Status
 
 
 @dataclass
 class ClientUploadingSignal:
     """Data structure used to require result uploading."""
+
     status: Status
 
 
 @dataclass
 class ClientRoamingSignal:
     """Data structure used to notify the anchor zone that a client roamed."""
+
     status: Status
+
 
 @dataclass
 class RoamingTerminationSignal:
     """Data structure used to notify the anchor and terminate the temporary connection."""
+
     status: Status
+
 
 @dataclass
 class Shutdown:
     """Data structure used to shutdown a Daisy node."""
-    status: Status
 
+    status: Status

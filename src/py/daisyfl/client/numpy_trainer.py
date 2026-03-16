@@ -32,32 +32,20 @@
 
 from abc import ABC
 from typing import Dict, Tuple
-from typing import Dict, Tuple
-from daisyfl.common import (
-    NDArrays,
-    ErrorCode,
-    EvaluateIns,
-    EvaluateRes,
-    FitIns,
-    FitRes,
-    NDArrays,
-    Status,
-)
+
+from daisyfl.common import ErrorCode, EvaluateIns, EvaluateRes, FitIns, FitRes, NDArrays, Status
 from daisyfl.utils.parameter import ndarrays_to_parameters, parameters_to_ndarrays
+
 from .trainer import Trainer
 
 
 class NumPyTrainer(ABC):
     """Abstract base class for Daisy trainers using NumPy."""
 
-    def fit(
-        self, parameters: NDArrays, config: Dict
-    ) -> Tuple[NDArrays, Dict]:
+    def fit(self, parameters: NDArrays, config: Dict) -> Tuple[NDArrays, Dict]:
         """Train the provided parameters using the locally held dataset."""
 
-    def evaluate(
-        self, parameters: NDArrays, config: Dict
-    ) ->  Dict:
+    def evaluate(self, parameters: NDArrays, config: Dict) -> Dict:
         """Evaluate the provided parameters using the locally held dataset."""
 
 
@@ -65,6 +53,7 @@ class NumPyTrainerWrapper(Trainer):
     """Wrap NumPyTrainer to simply the development cost of Python users."""
 
     def __init__(self, numpy_trainer: NumPyTrainer) -> None:
+        """Initialize NumPyTrainerWrapper with a NumPyTrainer instance."""
         super().__init__()
         self.numpy_trainer = numpy_trainer
 
@@ -80,7 +69,7 @@ class NumPyTrainerWrapper(Trainer):
             parameters=parameters_prime_proto,
             config=config,
         )
-    
+
     def evaluate(self, ins: EvaluateIns) -> EvaluateRes:
         """Evaluate the provided parameters using the locally held dataset."""
         parameters: NDArrays = parameters_to_ndarrays(ins.parameters)

@@ -18,44 +18,47 @@ Paper: https://eprint.iacr.org/2017/281.pdf
 """
 
 
-from typing import Callable, Dict, List, Optional, Tuple, Union
+import time
+from typing import Dict, List, Optional, Tuple
 
 from daisyfl.common import (
+    ACCURACY,
+    DATA_SAMPLES,
+    LOSS,
+    METRICS,
     EvaluateIns,
     EvaluateRes,
     FitIns,
     FitRes,
-    MetricsAggregationFn,
-    NDArrays,
     Parameters,
-    Scalar,
     SubtaskStatus,
-    METRICS,
-    ACCURACY,
-    LOSS,
-    DATA_SAMPLES,
 )
-from daisyfl.utils.parameter import ndarrays_to_parameters, parameters_to_ndarrays
-from daisyfl.utils.logger import log
-from daisyfl.common.client_proxy import ClientProxy
 from daisyfl.common.client_manager import ClientManager
+from daisyfl.common.client_proxy import ClientProxy
 from daisyfl.common.criterion import Criterion
+from daisyfl.utils.aggregate import aggregate_fedavg, weighted_acc_avg, weighted_loss_avg
+from daisyfl.utils.parameter import ndarrays_to_parameters, parameters_to_ndarrays
 
-from daisyfl.utils.aggregate import aggregate_fedavg, weighted_loss_avg, weighted_acc_avg
 from .strategy import Strategy
-import time
+
 
 class GetClientsFromList(Criterion):
     """Validate available clients for sampling with designated cids."""
+
     def __init__(self):
+        """Initialize GetClientsFromList with an empty cids list."""
         self.cids: List = []
-    
+
     def set_cids(self, cids: List):
+        """Set the list of client IDs to sample from."""
         self.cids = cids
-    
+
     def is_valid_candidate(self, client: ClientProxy) -> bool:
+        """Return True if the client's CID is in the designated list."""
         if client.cid in self.cids:
             return True
+        return False
+
 
 get_clients_from_list = GetClientsFromList()
 
@@ -90,15 +93,17 @@ class SecAgg(Strategy):
         """Configure the next round of fitting."""
         if kwargs.get("stage") == 0:
             fit_ins = FitIns(parameters, config)
-            clients = self.client_manager.sample_clients(self.num_clients_fit, 5,)
+            clients = self.client_manager.sample_clients(
+                self.num_clients_fit,
+                5,
+            )
             return [(client, fit_ins) for client in clients]
-        else:
-            client_instructions = kwargs.get("client_instructions")
-            cids = [client.cid for client, _ in client_instructions]    
-            get_clients_from_list.set_cids(cids)
-            clients = self.client_manager.sample_clients(waiting_time_before_sample=5, criterion=get_clients_from_list)
-            return [(client, client_instructions[cids.index(client.cid)][1]) for client in clients]
-            
+
+        client_instructions = kwargs.get("client_instructions")
+        cids = [client.cid for client, _ in client_instructions]
+        get_clients_from_list.set_cids(cids)
+        clients = self.client_manager.sample_clients(waiting_time_before_sample=5, criterion=get_clients_from_list)
+        return [(client, client_instructions[cids.index(client.cid)][1]) for client in clients]
 
     def configure_evaluate(
         self,
@@ -108,32 +113,33 @@ class SecAgg(Strategy):
     ) -> List[Tuple[ClientProxy, EvaluateIns]]:
         """Configure the next round of evaluation."""
         evaluate_ins = EvaluateIns(parameters, config)
-        clients = self.client_manager.sample_clients(self.num_clients_evaluate, 5,)
+        clients = self.client_manager.sample_clients(
+            self.num_clients_evaluate,
+            5,
+        )
         return [(client, evaluate_ins) for client in clients]
 
-    def wait_fit(
-        self, subtask_status: SubtaskStatus, **kwargs
-    ) -> bool:
+    def wait_fit(self, subtask_status: SubtaskStatus, **kwargs) -> bool:
         """Wait for the termination condition of fitting."""
         time.sleep(kwargs.get("min_waiting_time"))
         with subtask_status.cnd:
-            subtask_status.cnd.wait_for(lambda: (subtask_status.success_num + subtask_status.roaming_num >= self.min_results_fit) or \
-                (subtask_status.participant_num - subtask_status.failure_num < self.min_results_fit)
+            subtask_status.cnd.wait_for(
+                lambda: (subtask_status.success_num + subtask_status.roaming_num >= self.min_results_fit)
+                or (subtask_status.participant_num - subtask_status.failure_num < self.min_results_fit)
             )
-        if (subtask_status.success_num + subtask_status.roaming_num >= self.min_results_fit):
+        if subtask_status.success_num + subtask_status.roaming_num >= self.min_results_fit:
             return True
         return False
-    
-    def wait_evaluate(
-        self, subtask_status: SubtaskStatus, **kwargs
-    ) -> bool:
+
+    def wait_evaluate(self, subtask_status: SubtaskStatus, **kwargs) -> bool:
         """Wait for the termination condition of evaluation."""
         time.sleep(kwargs.get("min_waiting_time"))
         with subtask_status.cnd:
-            subtask_status.cnd.wait_for(lambda: (subtask_status.success_num + subtask_status.roaming_num >= self.min_results_evaluate) or \
-                (subtask_status.participant_num - subtask_status.failure_num < self.min_results_evaluate)
+            subtask_status.cnd.wait_for(
+                lambda: (subtask_status.success_num + subtask_status.roaming_num >= self.min_results_evaluate)
+                or (subtask_status.participant_num - subtask_status.failure_num < self.min_results_evaluate)
             )
-        if (subtask_status.success_num + subtask_status.roaming_num >= self.min_results_evaluate):
+        if subtask_status.success_num + subtask_status.roaming_num >= self.min_results_evaluate:
             return True
         return False
 
@@ -179,7 +185,6 @@ class SecAgg(Strategy):
         metrics_aggregated = {
             ACCURACY: acc_aggregated,
             LOSS: loss_aggregated,
-            DATA_SAMPLES: sum([evaluate_res.config[METRICS][DATA_SAMPLES] for _, evaluate_res in results])
+            DATA_SAMPLES: sum([evaluate_res.config[METRICS][DATA_SAMPLES] for _, evaluate_res in results]),
         }
         return metrics_aggregated
-
