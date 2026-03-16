@@ -9,9 +9,9 @@ description = "Daisy - A Hierarchical Friendly Federated Learning Framework For 
 license = "Apache-2.0"
 authors = ["tcfwbper <b05208031@ntu.edu.tw>"]
 readme = "README.md"
-homepage = "https://github.com/Intelligent-Systems-Lab/daisy"
-repository = "https://github.com/Intelligent-Systems-Lab/daisy"
-documentation = "https://github.com/Intelligent-Systems-Lab/daisy/tree/main/doc/daisy"
+homepage = "https://github.com/Intelligent-Systems-Lab/OpenDaisy"
+repository = "https://github.com/Intelligent-Systems-Lab/OpenDaisy"
+documentation = "https://github.com/Intelligent-Systems-Lab/OpenDaisy/tree/main/doc/"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
