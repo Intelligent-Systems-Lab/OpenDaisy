@@ -12,32 +12,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Abstract base class defining client operational logic for federated learning."""
 from abc import ABC, abstractmethod
-from typing import List, Optional, Callable
-from daisyfl.common import (
-    FitIns,
-    FitRes,
-    EvaluateIns,
-    EvaluateRes,
-)
+from typing import Callable
+
+from daisyfl.common import EvaluateIns, EvaluateRes, FitIns, FitRes
+
 
 class ClientLogic(ABC):
     """Abstract base class for Daisy Client operational logic definition."""
-    
-    def __init__(self, trainer, get_anchor_fn: Callable, handover_fn: Callable,) -> None:
+
+    def __init__(
+        self,
+        trainer,
+        get_anchor_fn: Callable,
+        handover_fn: Callable,
+    ) -> None:
+        """Initialize ClientLogic with a trainer and roaming callback functions."""
         self.trainer = trainer
         self.get_anchor_fn = get_anchor_fn
         self.handover_fn = handover_fn
-    
+
     @abstractmethod
     def fit(
-        self, ins: FitIns,
+        self,
+        ins: FitIns,
     ) -> FitRes:
         """Define the operation before and after client fit the local model."""
-        
+
     @abstractmethod
     def evaluate(
-        self, ins: EvaluateIns,
+        self,
+        ins: EvaluateIns,
     ) -> EvaluateRes:
         """Define the operation before and after client evaluate the local model."""
-    

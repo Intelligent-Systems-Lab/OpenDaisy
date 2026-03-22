@@ -31,26 +31,25 @@
 
 
 import concurrent.futures
-from threading import Condition
-from queue import Queue
-from typing import Dict, List, Optional, Tuple, Union, Callable, Generator
 import gc
+from queue import Queue
+from threading import Condition
+from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
+
 from daisyfl.common import (
+    CLIENT_FAIL,
+    CLIENT_ROAM,
+    TID,
     ErrorCode,
     EvaluateIns,
     EvaluateRes,
     FitIns,
     FitRes,
     SubtaskStatus,
-    TID,
-    CLIENT_FAIL,
-    CLIENT_ROAM
 )
-from daisyfl.utils.logger import log
+
 from .client_manager import ClientManager
 from .client_proxy import ClientProxy
-from .criterion import Criterion
-import gc
 
 FitResultsAndFailures = Tuple[
     List[Tuple[ClientProxy, FitRes]],
@@ -61,13 +60,17 @@ EvaluateResultsAndFailures = Tuple[
     List[Union[Tuple[ClientProxy, EvaluateRes], BaseException]],
 ]
 
+
 class Communicator:
     """Daisy communicator."""
+
     def __init__(
-        self, *, 
+        self,
+        *,
         client_manager: ClientManager,
         server_address: str,
     ) -> None:
+        """Initialize Communicator."""
         self.server_address: str = server_address
         self._client_manager: ClientManager = client_manager
         # subtask
@@ -77,9 +80,10 @@ class Communicator:
         self._queues: Dict[str, Queue] = {}
         self._roaming_queues_fit: Dict[str, Queue[FitRes]] = {}
         self._roaming_queues_evaluate: Dict[str, Queue[EvaluateRes]] = {}
-        
+
     # subtask
-    def _subtask_id_generation_fn(self,) -> Generator[str, None, None]:
+    @staticmethod
+    def _subtask_id_generation_fn() -> Generator[str, None, None]:
         """Generate a unique subtask ID."""
         _ticket = 0
         while True:
@@ -87,8 +91,8 @@ class Communicator:
             _ticket += 1
 
     def _register_subtask(
-        self, 
-        subtask_id: str, 
+        self,
+        subtask_id: str,
         participant_num: int,
     ) -> SubtaskStatus:
         """Register a new subtask."""
@@ -105,20 +109,20 @@ class Communicator:
         return self._subtask_status[subtask_id]
 
     def finish_subtask(self, subtask_id: str) -> None:
-        """
-        Method called by ServerOperators to finish a subtask.
+        """Method called by ServerOperators to finish a subtask.
 
-        Finishing a subtask means that this Daisy node would not
-        wait for more results from associated clients.
+        Finishing a subtask means that this Daisy node would not wait for more results from associated clients.
         """
         del self._subtask_status[subtask_id]
         del self._queues[subtask_id]
         gc.collect()
         self._client_manager.release_clients(subtask_id)
-        return
 
     def submit_result(
-        self, result: Tuple[ClientProxy, Union[FitRes, EvaluateRes]], roaming: bool, subtask_id: Optional[str],
+        self,
+        result: Tuple[ClientProxy, Union[FitRes, EvaluateRes]],
+        roaming: bool,
+        subtask_id: Optional[str],
     ) -> None:
         """Method called by ClientManager to submit a result (FitRes or EvaluateRes)."""
         _, res = result
@@ -148,14 +152,11 @@ class Communicator:
                     self._subtask_status[subtask_id].failure_num += 1
                 with self._subtask_status[subtask_id].cnd:
                     self._subtask_status[subtask_id].cnd.notify_all()
-            except:
-                raise Exception("Designated subtask was expired.")
+            except Exception as err:
+                raise Exception("Designated subtask was expired.") from err
 
     def client_status_transition(self, subtask_id: str, status: str) -> None:
-        """
-        ClientManager call this function to notify the communicator
-        that a client failed or roamed.
-        """
+        """ClientManager call this function to notify the communicator that a client failed or roamed."""
         try:
             if status == CLIENT_FAIL:
                 self._subtask_status[subtask_id].failure_num += 1
@@ -163,23 +164,19 @@ class Communicator:
                 self._subtask_status[subtask_id].roaming_num += 1
             with self._subtask_status[subtask_id].cnd:
                 self._subtask_status[subtask_id].cnd.notify_all()
-        except:
-            raise Exception("Designated subtask was expired.")
-    
+        except Exception as err:
+            raise Exception("Designated subtask was expired.") from err
+
     def get_results(self, subtask_id: str) -> List[Tuple[ClientProxy, Union[FitRes, EvaluateRes]]]:
-        """
-        Method called by ServerOperators to get the results (FitRes or EvaluateRes).
-        """
+        """Method called by ServerOperators to get the results (FitRes or EvaluateRes)."""
         results = []
         q = self._queues[subtask_id]
         while not q.empty():
             results.append(q.get())
         return results
-    
+
     def get_results_roaming(self, tid: str, is_fit: bool) -> List[Tuple[ClientProxy, Union[FitRes, EvaluateRes]]]:
-        """
-        Method called by ServerOperators to get the roamers' results (FitRes or EvaluateRes).
-        """
+        """Method called by ServerOperators to get the roamers' results (FitRes or EvaluateRes)."""
         results = []
         # case 1: get fit results
         if is_fit:
@@ -191,7 +188,7 @@ class Communicator:
                 results.append(q.get())
             del self._roaming_queues_fit[tid]
             return results
-        
+
         # case 2: get evaluate results
         if not self._roaming_queues_evaluate.__contains__(tid):
             return []
@@ -207,10 +204,7 @@ class Communicator:
         self,
         client_instructions: List[Tuple[ClientProxy, FitIns]],
     ) -> Tuple[str, SubtaskStatus]:
-        """
-        Method called by ServerOperators to communicate with
-        children for fitting a FL model.
-        """
+        """Method called by ServerOperators to communicate with children for fitting a FL model."""
         subtask_id = self._generate_subtask_id()
         subtask_status: SubtaskStatus = self._register_subtask(subtask_id, len(client_instructions))
         self._fit_clients(
@@ -226,10 +220,7 @@ class Communicator:
         self,
         client_instructions: List[Tuple[ClientProxy, EvaluateIns]],
     ) -> Tuple[str, SubtaskStatus]:
-        """
-        Method called by ServerOperators to communicate with
-        children for evaluating a FL model.
-        """
+        """Method called by ServerOperators to communicate with children for evaluating a FL model."""
         subtask_id = self._generate_subtask_id()
         subtask_status: SubtaskStatus = self._register_subtask(subtask_id, len(client_instructions))
         self._evaluate_clients(
@@ -241,25 +232,20 @@ class Communicator:
         )
         return subtask_id, subtask_status
 
+    @staticmethod
     def _fit_clients(
-        self,
         client_instructions: List[Tuple[ClientProxy, FitIns]],
     ) -> None:
         """Refine parameters concurrently on all sampled clients."""
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            {
+            for client_proxy, ins in client_instructions:
                 executor.submit(client_proxy.fit, ins)
-                for client_proxy, ins in client_instructions
-            }
 
+    @staticmethod
     def _evaluate_clients(
-        self,
         client_instructions: List[Tuple[ClientProxy, EvaluateIns]],
     ) -> None:
         """Evaluate parameters concurrently on all sampled clients."""
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            {
+            for client_proxy, ins in client_instructions:
                 executor.submit(client_proxy.evaluate, ins)
-                for client_proxy, ins in client_instructions
-            }
-

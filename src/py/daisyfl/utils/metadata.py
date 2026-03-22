@@ -12,55 +12,56 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Utilities for converting between gRPC metadata tuples and dictionaries."""
 
-from typing import Tuple, Dict
+from typing import Dict, Tuple
+
+from daisyfl.common import ANCHOR, CID, HANDOVER
+from daisyfl.utils.logger import ERROR, WARNING
+
 from .logger import log
-from daisyfl.utils.logger import WARNING, ERROR
-from daisyfl.common import ANCHOR, HANDOVER, CID
-
 
 reserved = [ANCHOR, HANDOVER]
 required = [CID]
+
 
 def metadata_to_dict(
     metadata: Tuple,
     check_reserved: bool = True,
     check_required: bool = True,
 ) -> Dict:
-    """
-    Transform a metadata to dictionary and
-    check the reserved words and the required words.
-    """
+    """Transform a metadata to dictionary and check the reserved words and the required words."""
     if not isinstance(metadata[0], Tuple):
         log(WARNING, "A metadata must be ((key, value),).")
         log(WARNING, "Transform metadata to correct format.")
         metadata = (metadata,)
 
-    dict = {}
+    metadata_dict = {}
     redundant = False
     for m in metadata:
         # m is not null
         if len(m) >= 2:
-            if m[0] in dict:
+            if m[0] in metadata_dict:
                 redundant = True
-            dict[m[0]] = m[1]
+            metadata_dict[m[0]] = m[1]
     # check reserved words
     if check_reserved:
         for word in reserved:
-            if dict.__contains__(word):
-                log(WARNING, "\"{}\" is a reserved word.".format(word))
+            if metadata_dict.__contains__(word):
+                log(WARNING, '"%s" is a reserved word.', word)
     # check required words
     if check_required:
         for word in required:
-            if not dict.__contains__(word):
-                log(ERROR, "\"{}\" is a required word but isn't defined".format(word))
+            if not metadata_dict.__contains__(word):
+                log(ERROR, '"%s" is a required word but isn\'t defined', word)
     if redundant:
         log(WARNING, "Some keys was redundantly defined.")
-    return dict
+    return metadata_dict
 
-def dict_to_metadata(dict: Dict) -> Tuple:
+
+def dict_to_metadata(data_dict: Dict) -> Tuple:
     """Transform a dictionary to metadata."""
     l = []
-    for key in dict.keys():
-        l.append((key, dict[key]))
+    for key in data_dict.keys():
+        l.append((key, data_dict[key]))
     return tuple(l)

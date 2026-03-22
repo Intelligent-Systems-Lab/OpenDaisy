@@ -4,14 +4,14 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "daisyfl"
-version = "1.0.0"
+version = "1.0.1"
 description = "Daisy - A Hierarchical Friendly Federated Learning Framework For Edge Computing"
 license = "Apache-2.0"
 authors = ["tcfwbper <b05208031@ntu.edu.tw>"]
 readme = "README.md"
-homepage = "https://github.com/Intelligent-Systems-Lab/daisy"
-repository = "https://github.com/Intelligent-Systems-Lab/daisy"
-documentation = "https://github.com/Intelligent-Systems-Lab/daisy/tree/main/doc/daisy"
+homepage = "https://github.com/Intelligent-Systems-Lab/OpenDaisy"
+repository = "https://github.com/Intelligent-Systems-Lab/OpenDaisy"
+documentation = "https://github.com/Intelligent-Systems-Lab/OpenDaisy/tree/main/doc/"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -64,7 +64,7 @@ types-dataclasses = "==0.6.5"
 isort = "==5.10.1"
 black = "==22.8.0"
 docformatter = "==1.5.0"
-mypy = "==0.961"
+mypy = "==1.6.1"
 pylint = "==2.13.8"
 flake8 = "==3.9.2"
 pytest = "==7.1.2"
@@ -74,6 +74,7 @@ grpcio-tools = "==1.43.0"
 mypy-protobuf = "==3.2.0"
 jupyterlab = "==3.3.2"
 rope = "==0.19.0"
+ruff = "==0.1.4"
 semver = "==2.13.0"
 sphinx = "==5.1.1"
 myst-parser = "==0.18.0"
@@ -85,20 +86,28 @@ sphinx-reredirects = "==0.1.1"
 nbsphinx = "==0.8.9"
 
 [tool.isort]
-line_length = 88
+line_length = 120
 indent = "    "
 multi_line_output = 3
 include_trailing_comma = true
 force_grid_wrap = 0
 use_parentheses = true
 known_first_party = ["daisyfl", "daisy_code_generator"]
+skip_glob = ["**/proto/*", "**/*_test.py"]
 
 [tool.black]
-line-length = 88
-target-version = ["py38", "py39", "py310"]
+line-length = 120
+target-version = ["py38", "py39", "py310", "py311"]
+extend-exclude = '(/proto/|.*_test\.py)'
+
+[tool.pylint.MASTER]
+ignore-paths = [
+    ".*/proto/.*",
+    ".*_test\\.py$",
+]
 
 [tool.pylint."MESSAGES CONTROL"]
-disable = "bad-continuation,duplicate-code,too-few-public-methods,useless-import-alias"
+disable = "bad-continuation,duplicate-code,too-few-public-methods,useless-import-alias,invalid-name,too-many-locals,too-many-branches,too-many-instance-attributes,too-many-arguments,broad-except,too-many-return-statements,too-many-statements,bare-except"
 
 [tool.pytest.ini_options]
 minversion = "6.2"
@@ -109,6 +118,9 @@ testpaths = [
 ]
 
 [tool.mypy]
+exclude = [
+    "(^|/)_test\\.py$",
+]
 plugins = [
     "numpy.typing.mypy_plugin",
 ]
@@ -121,12 +133,52 @@ ignore_errors = true
 module = [
     "importlib.metadata.*",
     "importlib_metadata.*",
+    "daisyfl.proto.*",
 ]
 follow_imports = "skip"
 follow_imports_for_stubs = true
 disallow_untyped_calls = false
+ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = "torch.*"
 follow_imports = "skip"
 follow_imports_for_stubs = true
+
+[tool.docformatter]
+wrap-summaries = 120
+wrap-descriptions = 120
+
+[tool.ruff]
+target-version = "py38"
+line-length = 120
+select = ["D", "E", "F", "W", "B", "ISC", "C4", "UP"]
+fixable = ["D", "E", "F", "W", "B", "ISC", "C4", "UP"]
+ignore = ["B024", "B027", "E722", "E741"]
+exclude = [
+    "*_test.py",
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "proto",
+]
+
+[tool.ruff.pydocstyle]
+convention = "google"

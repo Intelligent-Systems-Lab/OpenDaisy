@@ -32,21 +32,18 @@
 
 from typing import Any, List, cast
 
+from daisyfl.common import daisyfl_typing
 from daisyfl.proto.transport_pb2 import (
     ClientMessage,
-    ErrorCode,
     Element,
+    ErrorCode,
+    InnerList,
+    InnerMap,
+    InnerMapInt,
     Parameters,
     ServerMessage,
     Status,
-    InnerMap,
-    InnerMapInt,
-    InnerList,
 )
-
-from daisyfl.common import daisyfl_typing
-
-
 
 # === Parameters ===
 
@@ -203,7 +200,7 @@ def server_received_signal_to_proto(ins: daisyfl_typing.ServerReceivedSignal) ->
 
 
 def server_received_signal_from_proto(msg: ServerMessage.ServerReceivedSignal) -> daisyfl_typing.ServerReceivedSignal:
-    """Deserialize ProtoBuf message to SRS"""
+    """Deserialize ProtoBuf message to SRS."""
     status = status_from_proto(msg.status)
     return daisyfl_typing.ServerReceivedSignal(status=status)
 
@@ -214,8 +211,10 @@ def client_uploading_signal_to_proto(res: daisyfl_typing.ClientUploadingSignal) 
     return ClientMessage.ClientUploadingSignal(status=status_proto)
 
 
-def client_uploading_signal_from_proto(msg: ClientMessage.ClientUploadingSignal) -> daisyfl_typing.ClientUploadingSignal:
-    """Deserialize ProtoBuf message to CUS"""
+def client_uploading_signal_from_proto(
+    msg: ClientMessage.ClientUploadingSignal,
+) -> daisyfl_typing.ClientUploadingSignal:
+    """Deserialize ProtoBuf message to CUS."""
     status = status_from_proto(msg.status)
     return daisyfl_typing.ClientUploadingSignal(status=status)
 
@@ -227,19 +226,23 @@ def client_roaming_signal_to_proto(res: daisyfl_typing.ClientRoamingSignal) -> C
 
 
 def client_roaming_signal_from_proto(msg: ClientMessage.ClientRoamingSignal) -> daisyfl_typing.ClientRoamingSignal:
-    """Deserialize ProtoBuf message to CRS"""
+    """Deserialize ProtoBuf message to CRS."""
     status = status_from_proto(msg.status)
     return daisyfl_typing.ClientRoamingSignal(status=status)
 
 
-def roaming_termination_signal_to_proto(res: daisyfl_typing.RoamingTerminationSignal) -> ClientMessage.RoamingTerminationSignal:
+def roaming_termination_signal_to_proto(
+    res: daisyfl_typing.RoamingTerminationSignal,
+) -> ClientMessage.RoamingTerminationSignal:
     """Serialize RTS to ProtoBuf message."""
     status_proto = status_to_proto(res.status)
     return ClientMessage.RoamingTerminationSignal(status=status_proto)
 
 
-def roaming_termination_signal_from_proto(msg: ClientMessage.RoamingTerminationSignal) -> daisyfl_typing.RoamingTerminationSignal:
-    """Deserialize ProtoBuf message to RTS"""
+def roaming_termination_signal_from_proto(
+    msg: ClientMessage.RoamingTerminationSignal,
+) -> daisyfl_typing.RoamingTerminationSignal:
+    """Deserialize ProtoBuf message to RTS."""
     status = status_from_proto(msg.status)
     return daisyfl_typing.RoamingTerminationSignal(status=status)
 
@@ -257,7 +260,7 @@ def shutdown_to_proto(shutdown_signal: daisyfl_typing.Shutdown) -> ClientMessage
 
 
 def element_to_proto(element: daisyfl_typing.Element) -> Element:
-
+    """Serialize Element to ProtoBuf message."""
     if isinstance(element, bool):
         return Element(bool=element)
 
@@ -272,32 +275,30 @@ def element_to_proto(element: daisyfl_typing.Element) -> Element:
 
     if isinstance(element, str):
         return Element(string=element)
-    
-    if (isinstance(element, dict)):
+
+    if isinstance(element, dict):
         keys = list(element.keys())
-        if len(keys) > 0 and type(keys[0]) == int:
+        if len(keys) > 0 and isinstance(keys[0], int):
             return Element(inner_map_int=inner_map_int_to_proto(element))
         return Element(inner_map=inner_map_to_proto(element))
-    
-    if (isinstance(element, List)):
+
+    if isinstance(element, List):
         return Element(inner_list=inner_list_to_proto(element))
 
-    raise Exception(
-        f"Accepted types: {bool, bytes, float, int, str, dict, List} (but not {type(element)})"
-    )
+    raise Exception(f"Accepted types: {bool, bytes, float, int, str, dict, List} (but not {type(element)})")
 
 
 def element_from_proto(element_msg: Element) -> daisyfl_typing.Element:
     """Deserialize... ."""
     element_field = element_msg.WhichOneof("element")
     element = getattr(element_msg, cast(str, element_field))
-    if type(cast(daisyfl_typing.Element, element)) is InnerMap:
+    if isinstance(cast(daisyfl_typing.Element, element), InnerMap):
         inner_map_msg = cast(daisyfl_typing.Element, element)
         return inner_map_from_proto(inner_map_msg)
-    elif type(cast(daisyfl_typing.Element, element)) is InnerMapInt:
+    if isinstance(cast(daisyfl_typing.Element, element), InnerMapInt):
         inner_map_int_msg = cast(daisyfl_typing.Element, element)
         return inner_map_int_from_proto(inner_map_int_msg)
-    elif type(cast(daisyfl_typing.Element, element)) is InnerList:
+    if isinstance(cast(daisyfl_typing.Element, element), InnerList):
         inner_list_msg = cast(daisyfl_typing.Element, element)
         return inner_list_from_proto(inner_list_msg)
     return cast(daisyfl_typing.Element, element)
@@ -351,8 +352,8 @@ def inner_map_int_from_proto(inner_map_int_msg: InnerMapInt) -> Any:
 def inner_list_to_proto(inner_list: Any) -> InnerMap:
     """Serialize... ."""
     proto = []
-    for i in range(len(inner_list)):
-        proto.append(element_to_proto(inner_list[i]))
+    for item in inner_list:
+        proto.append(element_to_proto(item))
     return InnerList(inner_list=proto)
 
 
@@ -361,7 +362,6 @@ def inner_list_from_proto(inner_list_msg: InnerList) -> Any:
     inner_list_field = cast(str, InnerList.DESCRIPTOR.fields[0].name)
     proto = getattr(inner_list_msg, inner_list_field)
     inner_list = []
-    for i in range(len(proto)):
-        inner_list.append(element_from_proto(proto[i]))
+    for item in proto:
+        inner_list.append(element_from_proto(item))
     return inner_list
-

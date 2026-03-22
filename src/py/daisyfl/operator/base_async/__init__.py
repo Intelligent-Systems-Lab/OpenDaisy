@@ -13,8 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Base asynchronous optimization operators."""
-from .base_async_server_logic import BaseAsyncServerLogic as BaseAsyncServerLogic
 from .base_async_client_logic import BaseAsyncClientLogic as BaseAsyncClientLogic
+from .base_async_server_logic import BaseAsyncServerLogic as BaseAsyncServerLogic
 
 __all__ = [
     "BaseAsyncServerLogic",

@@ -12,67 +12,55 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from typing import Dict, List, Tuple, Callable
-from daisyfl.common import (
-    Status,
-    ErrorCode,
-    FitIns,
-    FitRes,
-    EvaluateIns,
-    EvaluateRes,
-    NDArrays,
-    DATA_SAMPLES,
-    METRICS,
-)
+"""Secure Aggregation client logic for federated learning rounds."""
+from typing import Dict, List, Tuple
+
+from daisyfl.common import DATA_SAMPLES, METRICS, ErrorCode, EvaluateIns, EvaluateRes, FitIns, FitRes, Status
+from daisyfl.utils.logger import INFO, WARNING, log
+from daisyfl.utils.parameter import ndarrays_to_parameters, parameters_to_ndarrays
+
+from ..client_logic import ClientLogic
+from . import primitives
 from .common import (
+    FORWARD_PACKETS,
     PROTO_KEY,
-    SEC_AGG_PARAM_DICT,
     PUBLIC_KEYS,
     PUBLIC_KEYS_LIST,
+    SEC_AGG_PARAM_DICT,
     SHARE_KEYS_PACKETS,
-    FORWARD_PACKETS,
     SHARE_REQUEST,
     SHARE_RESPONSE,
     Proto,
     PublicKeys,
     ShareKeysPacket,
-    ShareRequest,
     ShareResponse,
 )
-from daisyfl.utils.logger import log
-from daisyfl.utils.parameter import ndarrays_to_parameters, parameters_to_ndarrays
-from daisyfl.utils.logger import DEBUG, ERROR, INFO, WARNING
-from ..client_logic import ClientLogic
-from . import primitives
+
 
 class SecAggClientLogic(ClientLogic):
     """Daisy Client operational logic definition of secure aggregation."""
-    
-    def __init__(self, trainer, get_anchor_fn: Callable, handover_fn: Callable) -> None:
-        self.trainer = trainer
-        self.get_anchor_fn = get_anchor_fn
-        self.handover_fn = handover_fn
-    
+
     def fit(
-        self, ins: FitIns,
+        self,
+        ins: FitIns,
     ) -> FitRes:
         """Define the operation before and after client fit the local model."""
         stage = Proto(ins.config[PROTO_KEY])
         if stage == Proto.SETUP:
             return setup_param(self, ins)
-        elif stage == Proto.ASK_KEYS:
+        if stage == Proto.ASK_KEYS:
             return ask_keys(self, ins)
-        elif stage == Proto.SHARE_KEYS:
+        if stage == Proto.SHARE_KEYS:
             return share_keys(self, ins)
-        elif stage == Proto.ASK_VECTORS:
+        if stage == Proto.ASK_VECTORS:
             return ask_vectors(self, ins)
-        elif stage == Proto.UNMASK_VECTORS:
+        if stage == Proto.UNMASK_VECTORS:
             return unmask_vectors(self, ins)
-        else:
-            raise ValueError("Invalid stage Proto received") 
+        raise ValueError("Invalid stage Proto received")
 
     def evaluate(
-        self, ins: EvaluateIns,
+        self,
+        ins: EvaluateIns,
     ) -> EvaluateRes:
         """Define the operation before and after client evaluate the local model."""
         return self.trainer.evaluate(ins)
@@ -82,14 +70,14 @@ def setup_param(client_logic: ClientLogic, ins: FitIns) -> FitRes:
     """Step 0: Setup parameters of secure aggregation."""
     # Assigning parameter values to object fields
     sec_agg_param_dict = ins.config[SEC_AGG_PARAM_DICT]
-    client_logic.participant_num = sec_agg_param_dict['participant_num']
-    client_logic.sec_agg_id = sec_agg_param_dict['sec_agg_id']
-    client_logic.share_num = sec_agg_param_dict['share_num']
-    client_logic.threshold = sec_agg_param_dict['threshold']
-    client_logic.clipping_range = sec_agg_param_dict['clipping_range']
-    client_logic.target_range = sec_agg_param_dict['target_range']
-    client_logic.mod_range = sec_agg_param_dict['mod_range']
-    client_logic.max_weights_factor = sec_agg_param_dict['max_weights_factor']
+    client_logic.participant_num = sec_agg_param_dict["participant_num"]
+    client_logic.sec_agg_id = sec_agg_param_dict["sec_agg_id"]
+    client_logic.share_num = sec_agg_param_dict["share_num"]
+    client_logic.threshold = sec_agg_param_dict["threshold"]
+    client_logic.clipping_range = sec_agg_param_dict["clipping_range"]
+    client_logic.target_range = sec_agg_param_dict["target_range"]
+    client_logic.mod_range = sec_agg_param_dict["mod_range"]
+    client_logic.max_weights_factor = sec_agg_param_dict["max_weights_factor"]
 
     # key is another client's id
     # value is the secret share we possess that contributes to the client's secret (bytes)
@@ -140,20 +128,19 @@ def share_keys(client_logic: ClientLogic, ins: FitIns) -> FitRes:
     if len(set(pk_list)) != len(pk_list):
         raise Exception("Some public keys are identical")
     # sanity check that own public keys are correct in dict
-    if client_logic.public_keys_dict[client_logic.sec_agg_id]["pk1"] != primitives.public_key_to_bytes(client_logic.pk1) \
-        or client_logic.public_keys_dict[client_logic.sec_agg_id]["pk2"] != primitives.public_key_to_bytes(client_logic.pk2):
-        raise Exception(
-            "Own public keys are displayed in dict incorrectly, should not happen!")
+    if client_logic.public_keys_dict[client_logic.sec_agg_id]["pk1"] != primitives.public_key_to_bytes(
+        client_logic.pk1
+    ) or client_logic.public_keys_dict[client_logic.sec_agg_id]["pk2"] != primitives.public_key_to_bytes(
+        client_logic.pk2
+    ):
+        raise Exception("Own public keys are displayed in dict incorrectly, should not happen!")
     # Generate private mask seed
     client_logic.b = primitives.rand_bytes(32)
 
     # Create shares
-    b_shares = primitives.create_shares(
-        client_logic.b, client_logic.threshold, client_logic.share_num
-    )
+    b_shares = primitives.create_shares(client_logic.b, client_logic.threshold, client_logic.share_num)
     sk1_shares = primitives.create_shares(
-        primitives.private_key_to_bytes(
-            client_logic.sk1), client_logic.threshold, client_logic.share_num
+        primitives.private_key_to_bytes(client_logic.sk1), client_logic.threshold, client_logic.share_num
     )
     share_keys_res = []
 
@@ -201,74 +188,70 @@ def ask_vectors(client_logic: ClientLogic, ins: FitIns) -> FitRes:
         destination = packet["destination"]
         ciphertext = packet["ciphertext"]
         if destination != client_logic.sec_agg_id:
-            raise Exception(
-                "Received packet meant for another user. Not supposed to happen")
+            raise Exception("Received packet meant for another user. Not supposed to happen")
         shared_key = client_logic.shared_key_2_dict[source]
         plaintext = primitives.decrypt(shared_key, ciphertext)
         try:
-            plaintext_source, plaintext_destination, plaintext_b_share, plaintext_sk1_share = \
-                primitives.share_keys_plaintext_separate(plaintext)
+            (
+                plaintext_source,
+                plaintext_destination,
+                plaintext_b_share,
+                plaintext_sk1_share,
+            ) = primitives.share_keys_plaintext_separate(plaintext)
         except:
-            raise Exception(
-                "Decryption of ciphertext failed. Not supposed to happen")
+            raise Exception("Decryption of ciphertext failed. Not supposed to happen") from None
         if plaintext_source != source:
-            raise Exception(
-                "Received packet source is different from intended source. Not supposed to happen")
+            raise Exception("Received packet source is different from intended source. Not supposed to happen")
         if plaintext_destination != destination:
             raise Exception(
-                "Received packet destination is different from intended destination. Not supposed to happen")
+                "Received packet destination is different from intended destination. Not supposed to happen"
+            )
         client_logic.b_share_dict[source] = plaintext_b_share
         client_logic.sk1_share_dict[source] = plaintext_sk1_share
 
     # fit client
     del ins.config[FORWARD_PACKETS]
-    res: FitRes = client_logic.trainer.fit(FitIns(
-        parameters=ins.parameters, 
-        config=ins.config
-    ))
+    res: FitRes = client_logic.trainer.fit(FitIns(parameters=ins.parameters, config=ins.config))
     parameters = parameters_to_ndarrays(res.parameters)
     for key, value in res.config.items():
         ins.config[key] = value
     weights_factor = ins.config[METRICS][DATA_SAMPLES]
 
     # Quantize weight update vector
-    quantized_weights = primitives.quantize(
-        parameters, client_logic.clipping_range, client_logic.target_range)
+    quantized_weights = primitives.quantize(parameters, client_logic.clipping_range, client_logic.target_range)
 
     # weights factor cannoot exceed maximum
     if weights_factor > client_logic.max_weights_factor:
         weights_factor = client_logic.max_weights_factor
-        log(WARNING, "weights_factor exceeds allowed range and has been clipped. Either increase max_weights_factor, or train with fewer data. (Or server is performing unweighted aggregation)")
+        log(
+            WARNING,
+            "weights_factor exceeds allowed range and has been clipped. "
+            "Either increase max_weights_factor, or train with fewer data. "
+            "(Or server is performing unweighted aggregation)",
+        )
 
-    quantized_weights = primitives.weights_multiply(
-        quantized_weights, weights_factor)
-    quantized_weights = primitives.factor_weights_combine(
-        weights_factor, quantized_weights)
+    quantized_weights = primitives.weights_multiply(quantized_weights, weights_factor)
+    quantized_weights = primitives.factor_weights_combine(weights_factor, quantized_weights)
 
     dimensions_list: List[Tuple] = [a.shape for a in quantized_weights]
 
     # add private mask
-    private_mask = primitives.pseudo_rand_gen(
-        client_logic.b, client_logic.mod_range, dimensions_list)
-    quantized_weights = primitives.weights_addition(
-        quantized_weights, private_mask)
+    private_mask = primitives.pseudo_rand_gen(client_logic.b, client_logic.mod_range, dimensions_list)
+    quantized_weights = primitives.weights_addition(quantized_weights, private_mask)
 
     for client_id in available_clients:
         # add pairwise mask
         shared_key = primitives.generate_shared_key(
-            client_logic.sk1, primitives.bytes_to_public_key(client_logic.public_keys_dict[client_id]["pk1"]))
-        pairwise_mask = primitives.pseudo_rand_gen(
-            shared_key, client_logic.mod_range, dimensions_list)
+            client_logic.sk1, primitives.bytes_to_public_key(client_logic.public_keys_dict[client_id]["pk1"])
+        )
+        pairwise_mask = primitives.pseudo_rand_gen(shared_key, client_logic.mod_range, dimensions_list)
         if client_logic.sec_agg_id > client_id:
-            quantized_weights = primitives.weights_addition(
-                quantized_weights, pairwise_mask)
+            quantized_weights = primitives.weights_addition(quantized_weights, pairwise_mask)
         else:
-            quantized_weights = primitives.weights_subtraction(
-                quantized_weights, pairwise_mask)
+            quantized_weights = primitives.weights_subtraction(quantized_weights, pairwise_mask)
 
     # Take mod of final weight update vector and return to server
-    quantized_weights = primitives.weights_mod(
-        quantized_weights, client_logic.mod_range)
+    quantized_weights = primitives.weights_mod(quantized_weights, client_logic.mod_range)
     log(INFO, "SecAgg Stage 3 Completed: Sent Vectors")
     parameters = ndarrays_to_parameters(quantized_weights)
 

@@ -33,37 +33,32 @@ Paper: https://arxiv.org/abs/1602.05629
 """
 
 
-from typing import Callable, Dict, List, Optional, Tuple, Union
+import time
+from typing import Dict, List, Optional, Tuple
 
 from daisyfl.common import (
+    ACCURACY,
+    DATA_SAMPLES,
+    LOSS,
+    METRICS,
     EvaluateIns,
     EvaluateRes,
     FitIns,
     FitRes,
-    MetricsAggregationFn,
-    NDArrays,
     Parameters,
-    Scalar,
     SubtaskStatus,
-    METRICS,
-    ACCURACY,
-    LOSS,
-    DATA_SAMPLES,
-    CURRENT_ROUND,
 )
-from daisyfl.utils.parameter import ndarrays_to_parameters, parameters_to_ndarrays
-from daisyfl.utils.logger import log
-from daisyfl.common.client_proxy import ClientProxy
 from daisyfl.common.client_manager import ClientManager
-from daisyfl.common.criterion import Criterion
+from daisyfl.common.client_proxy import ClientProxy
+from daisyfl.utils.aggregate import aggregate_fedavg, weighted_acc_avg, weighted_loss_avg
+from daisyfl.utils.parameter import ndarrays_to_parameters, parameters_to_ndarrays
 
-from daisyfl.utils.aggregate import aggregate_fedavg, weighted_loss_avg, weighted_acc_avg
 from .strategy import Strategy
-import time
 
 
 class FedAvg(Strategy):
     """Configurable FedAvg strategy implementation."""
+
     def __init__(
         self,
         client_manager: ClientManager,
@@ -90,7 +85,10 @@ class FedAvg(Strategy):
     ) -> List[Tuple[ClientProxy, FitIns]]:
         """Configure the next round of fitting."""
         fit_ins = FitIns(parameters, config)
-        clients = self.client_manager.sample_clients(self.num_clients_fit, 5,)
+        clients = self.client_manager.sample_clients(
+            self.num_clients_fit,
+            5,
+        )
         return [(client, fit_ins) for client in clients]
 
     def configure_evaluate(
@@ -101,32 +99,33 @@ class FedAvg(Strategy):
     ) -> List[Tuple[ClientProxy, EvaluateIns]]:
         """Configure the next round of evaluation."""
         evaluate_ins = EvaluateIns(parameters, config)
-        clients = self.client_manager.sample_clients(self.num_clients_evaluate, 5,)
+        clients = self.client_manager.sample_clients(
+            self.num_clients_evaluate,
+            5,
+        )
         return [(client, evaluate_ins) for client in clients]
 
-    def wait_fit(
-        self, subtask_status: SubtaskStatus, **kwargs
-    ) -> bool:
+    def wait_fit(self, subtask_status: SubtaskStatus, **kwargs) -> bool:
         """Wait for the termination condition of fitting."""
         time.sleep(kwargs.get("min_waiting_time"))
         with subtask_status.cnd:
-            subtask_status.cnd.wait_for(lambda: (subtask_status.success_num + subtask_status.roaming_num >= self.min_results_fit) or \
-                (subtask_status.participant_num - subtask_status.failure_num < self.min_results_fit)
+            subtask_status.cnd.wait_for(
+                lambda: (subtask_status.success_num + subtask_status.roaming_num >= self.min_results_fit)
+                or (subtask_status.participant_num - subtask_status.failure_num < self.min_results_fit)
             )
-        if (subtask_status.success_num + subtask_status.roaming_num >= self.min_results_fit):
+        if subtask_status.success_num + subtask_status.roaming_num >= self.min_results_fit:
             return True
         return False
-    
-    def wait_evaluate(
-        self, subtask_status: SubtaskStatus, **kwargs
-    ) -> bool:
+
+    def wait_evaluate(self, subtask_status: SubtaskStatus, **kwargs) -> bool:
         """Wait for the termination condition of evaluating."""
         time.sleep(kwargs.get("min_waiting_time"))
         with subtask_status.cnd:
-            subtask_status.cnd.wait_for(lambda: (subtask_status.success_num + subtask_status.roaming_num >= self.min_results_evaluate) or \
-                (subtask_status.participant_num - subtask_status.failure_num < self.min_results_evaluate)
+            subtask_status.cnd.wait_for(
+                lambda: (subtask_status.success_num + subtask_status.roaming_num >= self.min_results_evaluate)
+                or (subtask_status.participant_num - subtask_status.failure_num < self.min_results_evaluate)
             )
-        if (subtask_status.success_num + subtask_status.roaming_num >= self.min_results_evaluate):
+        if subtask_status.success_num + subtask_status.roaming_num >= self.min_results_evaluate:
             return True
         return False
 
@@ -172,7 +171,6 @@ class FedAvg(Strategy):
         metrics_aggregated = {
             ACCURACY: acc_aggregated,
             LOSS: loss_aggregated,
-            DATA_SAMPLES: sum([evaluate_res.config[METRICS][DATA_SAMPLES] for _, evaluate_res in results])
+            DATA_SAMPLES: sum([evaluate_res.config[METRICS][DATA_SAMPLES] for _, evaluate_res in results]),
         }
         return metrics_aggregated
-

@@ -30,19 +30,17 @@
 """Handle server messages by calling appropriate client methods."""
 
 from daisyfl.client.client_operator_launcher import ClientOperatorLauncher
-from daisyfl.utils import daisyfl_serde
+from daisyfl.common import CID, CURRENT_ROUND, METRICS
 from daisyfl.proto.transport_pb2 import ClientMessage, ServerMessage
-from daisyfl.common import CURRENT_ROUND, METRICS, CID
-from daisyfl.utils.logger import log, WARNING
+from daisyfl.utils import daisyfl_serde
+from daisyfl.utils.logger import WARNING, log
+
 
 class UnknownServerMessage(Exception):
     """Signifies that the received message is unknown."""
 
 
-def handle(
-    server_msg: ServerMessage,
-    client_operator_launcher: ClientOperatorLauncher
-) -> ClientMessage:
+def handle(server_msg: ServerMessage, client_operator_launcher: ClientOperatorLauncher) -> ClientMessage:
     """Handle incoming messages from the server."""
     field = server_msg.WhichOneof("msg")
     if field == "fit_ins":
@@ -61,53 +59,51 @@ def _fit(fit_msg: ServerMessage.FitIns, client_operator_launcher: ClientOperator
     if not fit_res.config.__contains__(CURRENT_ROUND):
         log(
             WARNING,
-            "Configuration of FitRes doesn't contain \"CURRENT_ROUND\". \"CURRENT_ROUND\" in FitIns will be used in FitRes."
+            'Configuration of FitRes doesn\'t contain "CURRENT_ROUND". '
+            '"CURRENT_ROUND" in FitIns will be used in FitRes.',
         )
         fit_res.config[CURRENT_ROUND] = fit_ins.config[CURRENT_ROUND]
     if not fit_res.config.__contains__(METRICS):
-        log(
-            WARNING,
-            "Configuration of FitRes doesn't contain \"METRICS\". An empty dicationary will be used in FitRes."
-        )
+        log(WARNING, 'Configuration of FitRes doesn\'t contain "METRICS". An empty dicationary will be used in FitRes.')
         fit_res.config[METRICS] = {}
     if not fit_res.config.__contains__(CID):
-        log(
-            WARNING,
-            "Configuration of FitRes doesn't contain \"CID\". \"CID\" in FitIns will be used in FitRes."
-        )
+        log(WARNING, 'Configuration of FitRes doesn\'t contain "CID". "CID" in FitIns will be used in FitRes.')
         fit_res.config[CID] = fit_ins.config[CID]
-    
+
     # Serialize fit result
     fit_res_proto = daisyfl_serde.fit_res_to_proto(fit_res)
     return ClientMessage(fit_res=fit_res_proto)
 
 
-def _evaluate(evaluate_msg: ServerMessage.EvaluateIns, client_operator_launcher: ClientOperatorLauncher) -> ClientMessage:
+def _evaluate(
+    evaluate_msg: ServerMessage.EvaluateIns, client_operator_launcher: ClientOperatorLauncher
+) -> ClientMessage:
     # Deserialize evaluate instruction
     evaluate_ins = daisyfl_serde.evaluate_ins_from_proto(evaluate_msg)
     # Perform evaluation
     evaluate_res = client_operator_launcher.evaluate(evaluate_ins)
-    
+
     if not evaluate_res.config.__contains__(CURRENT_ROUND):
         log(
             WARNING,
-            "Configuration of EvaluateRes doesn't contain \"CURRENT_ROUND\". \"CURRENT_ROUND\" in EvaluateIns will be used in EvaluateRes."
+            'Configuration of EvaluateRes doesn\'t contain "CURRENT_ROUND". '
+            '"CURRENT_ROUND" in EvaluateIns will be used in EvaluateRes.',
         )
         evaluate_res.config[CURRENT_ROUND] = evaluate_ins.config[CURRENT_ROUND]
     if not evaluate_res.config.__contains__(METRICS):
         log(
             WARNING,
-            "Configuration of EvaluateRes doesn't contain \"METRICS\". An empty dicationary will be used in EvaluateRes."
+            'Configuration of EvaluateRes doesn\'t contain "METRICS". '
+            "An empty dicationary will be used in EvaluateRes.",
         )
         evaluate_res.config[METRICS] = {}
     if not evaluate_res.config.__contains__(CID):
         log(
             WARNING,
-            "Configuration of EvaluateRes doesn't contain \"CID\". \"CID\" in EvaluateIns will be used in EvaluateRes."
+            'Configuration of EvaluateRes doesn\'t contain "CID". "CID" in EvaluateIns will be used in EvaluateRes.',
         )
         evaluate_res.config[CID] = evaluate_ins.config[CID]
-    
+
     # Serialize evaluate result
     evaluate_res_proto = daisyfl_serde.evaluate_res_to_proto(evaluate_res)
     return ClientMessage(evaluate_res=evaluate_res_proto)
-

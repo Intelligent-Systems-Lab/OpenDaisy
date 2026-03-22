@@ -12,42 +12,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from typing import Dict, List, Optional, Tuple, Callable
-from daisyfl.strategy import Strategy
-from daisyfl.metrics_handler import MetricsHandler
-from daisyfl.common import (
-    Parameters,
-    Report,
-    Task,
-    CURRENT_ROUND,
-    TID,
-    METRICS,
-    MIN_WAITING_TIME,
-)
-from daisyfl.utils.logger import log
-import numpy as np
-from daisyfl.common.communicator import Communicator
-from ..server_logic import ServerLogic
+"""Base asynchronous server logic for federated learning rounds."""
+from typing import List, Optional, Tuple
 
+import numpy as np
+
+from daisyfl.common import CURRENT_ROUND, METRICS, MIN_WAITING_TIME, TID, Parameters, Report, Task
+from daisyfl.common.communicator import Communicator
+from daisyfl.metrics_handler import MetricsHandler
+from daisyfl.strategy import Strategy
+
+from ..server_logic import ServerLogic
 
 MAX_STALENESS = 4
 
+
 def staleness_fn(alpha, staleness):
+    """Compute a staleness-discounted alpha using exponential decay."""
     decay_factor = np.exp(-1 * staleness / MAX_STALENESS)
     return alpha * decay_factor
 
 
 class BaseAsyncServerLogic(ServerLogic):
     """Base asynchronous server (Zone or Master) operational logic defenition."""
-    
-    def __init__(self,
+
+    def __init__(
+        self,
         communicator: Communicator,
         strategy: Strategy,
         metrics_handler: MetricsHandler,
     ) -> None:
-        self.communicator: Communicator = communicator
-        self.strategy: Strategy = strategy
-        self.metrics_handler: MetricsHandler = metrics_handler
+        """Initialize BaseAsyncServerLogic with a communicator, strategy, and metrics handler."""
+        super().__init__(communicator=communicator, strategy=strategy, metrics_handler=metrics_handler)
         self.subtasks: List = []
         self.max_num_subtasks = MAX_STALENESS
         self.alpha = 0.9
@@ -57,9 +53,7 @@ class BaseAsyncServerLogic(ServerLogic):
         self,
         parameters: Parameters,
         task: Task,
-    ) -> Optional[
-        Tuple[Optional[Parameters], Optional[Report]]
-    ]:
+    ) -> Optional[Tuple[Optional[Parameters], Optional[Report]]]:
         """Perform a single round fit."""
         client_instructions = self.strategy.configure_fit(parameters=parameters, config=task.config)
         subtask_id, subtask_status = self.communicator.fit_clients(client_instructions=client_instructions)
@@ -85,11 +79,18 @@ class BaseAsyncServerLogic(ServerLogic):
             )
             task.config.update({METRICS: metrics})
             self.metrics_handler.update_metrics_fit(task.config)
-            task.config.update({METRICS: metrics,})
+            task.config.update(
+                {
+                    METRICS: metrics,
+                }
+            )
         else:
-            task.config.update({METRICS: {},})
+            task.config.update(
+                {
+                    METRICS: {},
+                }
+            )
         return parameters, Report(config=task.config)
-
 
     def evaluate_round(
         self,
@@ -101,15 +102,24 @@ class BaseAsyncServerLogic(ServerLogic):
         subtask_id, subtask_status = self.communicator.evaluate_clients(client_instructions)
         if self.strategy.wait_evaluate(subtask_status=subtask_status, min_waiting_time=task.config[MIN_WAITING_TIME]):
             # success
-            results = self.communicator.get_results(subtask_id) + self.communicator.get_results_roaming(tid=task.config[TID], is_fit=False)
+            results = self.communicator.get_results(subtask_id) + self.communicator.get_results_roaming(
+                tid=task.config[TID], is_fit=False
+            )
             self.communicator.finish_subtask(subtask_id)
             metrics = self.strategy.aggregate_evaluate(results=results)
             task.config.update({METRICS: metrics})
             self.metrics_handler.update_metrics_evaluate(task.config)
-            task.config.update({METRICS: metrics,})
+            task.config.update(
+                {
+                    METRICS: metrics,
+                }
+            )
         else:
             # fail
-            self.communicator.finish_subtask(subtask_id)    
-            task.config.update({METRICS: {},})
+            self.communicator.finish_subtask(subtask_id)
+            task.config.update(
+                {
+                    METRICS: {},
+                }
+            )
         return Report(config=task.config)
-

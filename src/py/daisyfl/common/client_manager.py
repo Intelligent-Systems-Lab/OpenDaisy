@@ -32,27 +32,27 @@
 
 import random
 import threading
-from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Callable, Set, Union, Tuple
+import time
+from typing import Dict, List, Optional, Set, Tuple, Union
 
-from daisyfl.utils.logger import log, INFO, WARNING
-from daisyfl.common import FitRes, EvaluateRes
+from daisyfl.common import EvaluateRes, FitRes
+from daisyfl.utils.logger import WARNING, log
 
 from .client_proxy import ClientProxy
 from .criterion import Criterion
-import time
 
 
 class ClientManager:
     """Daisy ClientManager."""
 
     def __init__(self) -> None:
+        """Initialize ClientManager with empty client registries and a condition variable."""
         self.communicator = None
         self.children: Dict[str, ClientProxy] = {}
         self.busy_children: Set = set()
-        self.busy_children_subtask_id: Dict[str, List[str]] = {}    
+        self.busy_children_subtask_id: Dict[str, List[str]] = {}
         self._cv = threading.Condition()
-    
+
     # children
     def register_client(self, client: ClientProxy) -> bool:
         """Register a Daisy ClientProxy instance.
@@ -64,16 +64,16 @@ class ClientManager:
         # check cid
         if self.children.__contains__(client.cid):
             return False
-        
+
         client.set_submit_result_fn(self.submit_result)
         client.set_is_pending_fn(self.is_client_pending)
         client.set_client_status_transition_fn(self.client_status_transition)
-        
+
         self.children[client.cid] = client
 
         with self._cv:
             self._cv.notify_all()
-        
+
         return True
 
     def unregister_client(self, client: ClientProxy) -> None:
@@ -82,18 +82,20 @@ class ClientManager:
             self.children.pop(client.cid)
         else:
             log(WARNING, "Unregister a nonexistent client.")
-        
+
         with self._cv:
             self._cv.notify_all()
 
-    def shutdown(self,) -> None:
+    def shutdown(
+        self,
+    ) -> None:
         """Unregister all client proxies before shutdown."""
         # NOTE: Iterating over a snapshot of values to avoid race condition
         for client in list(self.children.values()):
             client.bridge.close()
             self.unregister_client(client)
             del client
-            
+
     # communicator
     def set_communicator(self, communicator) -> None:
         """Set the communicator."""
@@ -115,7 +117,9 @@ class ClientManager:
             del self.busy_children_subtask_id[subtask_id]
 
     def submit_result(
-        self, result: Tuple[ClientProxy, Union[FitRes, EvaluateRes]], roaming: bool,
+        self,
+        result: Tuple[ClientProxy, Union[FitRes, EvaluateRes]],
+        roaming: bool,
     ) -> None:
         """Method called by client proxies to submit a result."""
         if roaming:
@@ -136,15 +140,18 @@ class ClientManager:
             # submit to communicator
             self.communicator.submit_result(result, roaming, obj_stid)
 
-    def is_client_pending(self, cid: str,) -> None:
+    def is_client_pending(
+        self,
+        cid: str,
+    ) -> None:
         """Check the existence of the related subtask."""
         if self.busy_children.__contains__(cid):
             return True
         return False
 
     def client_status_transition(self, client: ClientProxy, status: str) -> None:
-        """
-        Method to transit the status of a client proxy.
+        """Method to transit the status of a client proxy.
+
         The argument "status" can be one of the following global variables:
         1. CLIENT_ROAM
         2. CLIENT_FAIL
@@ -177,33 +184,35 @@ class ClientManager:
         if num_clients is None:
             return self.get_available_clients(criterion=criterion)
         # case 2: sample clients with blocking quotas
-        elif num_clients > 0:
+        if num_clients > 0:
             for _ in range(retries):
                 # Block until at least num_clients are connected.
                 with self._cv:
                     success = self._cv.wait_for(
-                        lambda: self.num_available() >= num_clients, timeout=cv_timeout,
+                        lambda: self.num_available() >= num_clients,
+                        timeout=cv_timeout,
                     )
-                
+
                 if success:
                     client_list = self.get_available_clients(criterion=criterion)
-                
+
                     if len(client_list) >= num_clients:
                         return random.sample(client_list, num_clients)
-                    
+
                     # Block until the next client registration
                     with self._cv:
                         self._cv.wait()
         # case 3: num_clients is invalid
-        else:
-            log(
-                WARNING,
-                "Sampling failed: number of requested clients (%s) is non-positive.",
-                num_clients,
-            )
-            return []
+        log(
+            WARNING,
+            "Sampling failed: number of requested clients (%s) is non-positive.",
+            num_clients,
+        )
+        return []
 
-    def num_available(self,) -> int:
+    def num_available(
+        self,
+    ) -> int:
         """Return the number of available clients."""
         nums = 0
         # NOTE: Iterating over a snapshot of values to avoid race condition
@@ -220,8 +229,7 @@ class ClientManager:
             if client.bridge.client_available():
                 if criterion is not None:
                     if criterion.is_valid_candidate(client):
-                            client_list.append(client)
+                        client_list.append(client)
                 else:
                     client_list.append(client)
         return client_list
-

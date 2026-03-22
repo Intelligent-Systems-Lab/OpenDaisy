@@ -15,22 +15,23 @@
 """Handle metrics update and exposure."""
 
 from functools import reduce
-from .metrics_handler import MetricsHandler
-from typing import Dict, List, Tuple, Callable, Optional
-from daisyfl.utils.logger import DEBUG, INFO, ERROR, WARNING
-from daisyfl.utils.logger import log
+from typing import Dict, List
+
+from flask import make_response
 
 from daisyfl.common import (
-    CURRENT_ROUND,
+    ACCURACY,
     CURRENT_ROUND_MASTER,
     CURRENT_ROUND_ZONE,
-    ZONE_COMM_FREQUENCY,
-    METRICS,
-    ACCURACY,
-    LOSS,
     DATA_SAMPLES,
+    LOSS,
+    METRICS,
+    ZONE_COMM_FREQUENCY,
 )
-from flask import Flask, request, make_response, Response
+from daisyfl.utils.logger import DEBUG, INFO, log
+
+from .metrics_handler import MetricsHandler
+
 
 class HierMetricsHandler(MetricsHandler):
     """MetricsHandler class to cope with metrics update and exposure."""
@@ -38,20 +39,20 @@ class HierMetricsHandler(MetricsHandler):
     def __init__(
         self,
     ) -> None:
+        """Initialize HierMetricsHandler and set up empty metrics lists."""
         log(DEBUG, "Start MetricsHandler.")
         super().__init__()
         self.acc: List = []
         self.loss: List = []
         self.fit_data_samples: List = []
         self.evaluate_data_samples: List = []
-    
+
     def update_metrics_fit(self, config: Dict):
         """Update fitting metrics."""
         # DEFAULT: data_samples
         server_round = config[CURRENT_ROUND_MASTER] * config[ZONE_COMM_FREQUENCY] + config[CURRENT_ROUND_ZONE]
 
         self.fit_data_samples.append((server_round, config[METRICS][DATA_SAMPLES]))
-        return
 
     def update_metrics_evaluate(self, config: Dict):
         """Update evaluation metrics."""
@@ -61,9 +62,10 @@ class HierMetricsHandler(MetricsHandler):
         self.acc.append((server_round, config[METRICS][ACCURACY]))
         self.loss.append((server_round, config[METRICS][LOSS]))
         self.evaluate_data_samples.append((server_round, config[METRICS][DATA_SAMPLES]))
-        return
-    
-    def get_metrics(self,):
+
+    def get_metrics(
+        self,
+    ):
         """Expose metrics through API gateway."""
         # DEFAULT: expose metrics to prometheus.
         log(INFO, self)
@@ -75,18 +77,11 @@ class HierMetricsHandler(MetricsHandler):
         """Print metrics."""
         rep = ""
         rep += "Accuracy:\n" + reduce(
-                lambda a, b: a + b,
-                [
-                    f"\tround {server_round}: {acc}\n"
-                    for server_round, acc in self.acc
-                ],
-            )
+            lambda a, b: a + b,
+            [f"\tround {server_round}: {acc}\n" for server_round, acc in self.acc],
+        )
         rep += "Loss:\n" + reduce(
-                lambda a, b: a + b,
-                [
-                    f"\tround {server_round}: {loss}\n"
-                    for server_round, loss in self.loss
-                ],
-            )
+            lambda a, b: a + b,
+            [f"\tround {server_round}: {loss}\n" for server_round, loss in self.loss],
+        )
         return rep
-
