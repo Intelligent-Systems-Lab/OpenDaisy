@@ -1,0 +1,27 @@
+name: Code Quality Checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.8'
+
+      - name: Bootstrap dev environment
+        run: ./dev/bootstrap.sh
+
+      - name: Run dev/test.sh
+        run: python -m poetry run ./dev/test.sh
