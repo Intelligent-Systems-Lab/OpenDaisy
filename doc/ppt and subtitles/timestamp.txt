@@ -1,0 +1,871 @@
+00:00:02 
+
+投影片第一頁架構流程及使用警戒。 
+
+00:00:08 
+
+投影片第2頁Daisy的特色Daisy相較於像flower這種呃傳統大比較常用的FL框架有以下四種特色，第一daily可以支援分成的結構。 
+
+00:00:26 
+
+像是如果想要分成3層，最上層是雲端，中間層是放在MEC最下層是。 
+
+00:00:35 
+
+是手機上面的client端的話，Daisy可以做到，但是flower的話就只能支援兩層，最上層雲端最下層4顆。 
+
+00:00:44 
+
+第2點，Daisy可以實現handover的功能，而且只需要透過簡單的扣函數，就可以讓你在實做的時候直接運行hand over。 
+
+00:00:57 
+
+第3點Daisy可以傳送Jason形式給他的，這樣子可以讓你比較方便去試做一些想做的內容。 
+
+00:01:07 
+
+第4點Daisy有很多部分是可以去自定義的，包含strategy server large以及matrix handle了，然後使用者可以去自定義自己想要的功能。 
+
+00:01:21 
+
+投影片第3頁。 
+
+00:01:24 
+
+Daisy主要的架構lazy的架構可以看成是分成三種，node最上層的是master node。 
+
+00:01:33 
+
+上面接著其他Note，但是它底下就需要接client的話，那它就會是屬於zone node。 
+
+00:01:42 
+
+上面只有上面會需要接node，但是底下不會再有其他Note的是client client也是負責訓練模型的地方。 
+
+00:01:53 
+
+在miss A Note還會有一個附加的一個元件，叫做test getaway，主要是。 
+
+00:02:02 
+
+接收HTTP request將task的Jason擋送進來之後test gateway，因為他直接附在Mr node上，所以他會直接把接收到task傳給miss A node去產生這個任務。 
+
+00:02:19 
+
+從右圖可以看到。 
+
+00:02:22 
+
+在。 
+
+00:02:23 
+
+Cloud端通常是只有一個master。 
+
+00:02:28 
+
+然後在第2層，也就是通常是Mac C的部分，我們是用zone node讓。 
+
+00:02:36 
+
+在讓cloud的斷站client段時間增加一個新的節點。 
+
+00:02:44 
+
+這樣就可以達成分成分成3層的這樣子一個架構。 
+
+00:02:50 
+
+在age跟edge之間會有一個聯通的限，這是代表說edge跟edge之間可以互相溝通，然後去傳遞說現在有沒有client被handled到另外一個edge上。 
+
+00:03:07 
+
+投影片第10頁。 
+
+00:03:10 
+
+左圖以及右圖是2個有可能的daily架構的一個範例，像左圖的話就是messer，它底下左邊接了zone node one。 
+
+00:03:26 
+
+左邊。 
+
+00:03:28 
+
+用Note one的左邊右接了一個zone Note的移資儀，這樣子可以看到它形成了一個最常呃最常有4層的一個數。 
+
+00:03:44 
+
+對這個是Daisy可以辦到的，因為zone node的話，它是指上面需要接一個parent，下面又有try的情況就會使用到node，所以don't Note直接接觸Note也是可以的。 
+
+00:03:57 
+
+幼讀的話是Daisy去實作一個就是flower也可以做到的一個結構就是master node底下直接接看node，直接形成一個兩層的架構，所以flower做得到的daily也可以做得到。 
+
+00:04:18 
+
+投影片第。 
+
+00:04:18 
+
+頁接下來要開始要介紹日的運作流程。 
+
+00:04:25 
+
+短影片第6頁，首先，第一部是要先建立node。 
+
+00:04:33 
+
+Node有messen node那種node以及client node在建立這些node的時候需要提供給他他server需要開啟的IP code。還有如果是zone Note和看node的話，他就需要提供他的parent。 
+
+00:04:50 
+
+Parent他的parent開啟的server。 
+
+00:04:54 
+
+這樣子的。 
+
+00:04:56 
+
+Client或者zone才可以連接到它的parent。 
+
+00:05:04 
+
+所以你可以看到在client裡面會有一個trainer，這個是因為channels在一開始client被建立的時候就會存在於開案內，他不是在等task被接收後才會產生。 
+
+00:05:19 
+
+所以task裡面是沒有辦法更換channel的是你要在啟動看的時候就已經放在裡面。 
+
+00:05:32 
+
+本影片第7頁。 
+
+00:05:34 
+
+對經營完Note之後，接下來就是發布task。 
+
+00:05:38 
+
+我們可以看到右圖這裡圖的左上角，這裡有一個task one被透過HTTP post傳送到test gateway test gateway再介紹到之後因為它連接到Mr node上就會直接給missed node讓messed node去跟據這個。 
+
+00:05:55 
+
+Task來產生相應的matrix handle的或strategy這一些。 
+
+00:06:03 
+
+呃，客製化的class。 
+
+00:06:06 
+
+可以看到，如果是按照順序的話是首先master會先建立屬於它的還有Mitch handle strategy這一些，然後在建立完之後，會vessel會把這個task繼續往下發給zone。 
+
+00:06:22 
+
+這種接收到之後，也會按照社Jason裡面的設定檔去建立zone的serverlachic zone的strategy還有。 
+
+00:06:32 
+
+對這種建立完之後，這種就會繼續發給柯漢的柯漢德就會建立屬於他的client logic。 
+
+00:06:42 
+
+圖影片第8億這也是詳細呃說明一下在fab task的時候，裡面實際上就是有關於我們會制定一道的class裡面code function的一個順序。 
+
+00:07:03 
+
+在miss A node，他一開始接收到這一個task的時候，他會先建立起server以及strategy，然後會首先會被扣到的是裡面的fit round的這個function。 
+
+00:07:19 
+
+我們這裡。 
+
+00:07:20 
+
+假設的是這個，這一次我們要執行的是fit車是從，所以我們從實際上會分成兩一種是fit的，另外一種是evaluate Run就分別對應，一個是訓練，一個是去驗證這兩種不同的操作。 
+
+00:07:37 
+
+好，我們可以看中間中間這一個方塊的流程圖。 
+
+00:07:44 
+
+首先，master sympic Bay code feeder round的時候。 
+
+00:07:49 
+
+他會去詢問meta strategy，用這個configure fit，這個意思就是說他要問message，我這一次fit應該要找哪一些child來進行fit？ 
+
+00:08:03 
+
+在message他執行完configure feed的時候，回傳的就是我這一次這一輪fit應該要找哪一些child？ 
+
+00:08:12 
+
+然後接著就會用呃推傳的這些child去。 
+
+00:08:17 
+
+傳遞這個task給這些child。 
+
+00:08:22 
+
+所以接下來是會傳到zone這裡zone，這裡的話也是會學院去扣fed好fiter round，裡面會再去找zone自己的sylge用fit再問手機想要傳給loan自己的哪一些child？ 
+
+00:08:37 
+
+然後有了這一個臭油車之後就繼續傳給克蘭特。 
+
+00:08:41 
+
+到我看到這裡的話，是直接會去找看到logic裡面的fit，這個function在fit這個function的話，它裡面是這樣，如果你要訓練model的話，那就是直接你可以用channel裡面你自定義的fit function讓channel。 
+
+00:08:58 
+
+啊，從loan這邊傳過來的參數去執行訓練等訓練完之後你再看拉，再把這個回訓練完之後的結果整理一下，然後之後再往回傳。 
+
+00:09:16 
+
+好影片第九。 
+
+00:09:18 
+
+接下來是要介紹回傳的部分。 
+
+00:09:22 
+
+我們一看欸組中間這一個流程圖在channel，他訓練完之後，他會回傳這一支訓練的weight以及matches給can logic。 
+
+00:09:35 
+
+接著呃client logic整理完之後，我覺得繼續把這個位置跟matrix給龍的server logic。 
+
+00:09:42 
+
+對這種這裡接收到回傳的結果之後，他會去找thread的去這裡扣這個weight fit這個weight fit主要就是問說現在我蒐集到的。 
+
+00:09:57 
+
+Return回來，這些未的manager的數量足不足夠，就是要執行aggregator，如果足夠的話，那12G就會跟server大局的時候，現在已經足夠了。 
+
+00:10:08 
+
+如果我現在是足夠的話，那接下來就會去執行A gate fit也是去找loan strategy用fit去把weight，還有matches這些去合在一起。 
+
+00:10:21 
+
+在喝完之後zone就會也可以，他會去找make handle去把這一次fit的結果就是matrix的部分更新上去。 
+
+00:10:34 
+
+然後更新完之後就可以把這個位置還有沒有機器就回傳給minister那幾個大幾個這邊的步驟也是一樣的，就是先去問他的，是說現在足夠足夠的話就去執行aggregate八，每一取才有wait合在一起，然後再把合完之後的matrix用update matrix feed更新到match handled上。 
+
+00:10:58 
+
+投影片第10頁。 
+
+00:11:00 
+
+這裡我們講一下Daisy裡面有關輝傳頻率的一些參數，以及，然後最後出來的結果會是怎麼樣的？ 
+
+00:11:10 
+
+在daily裡面會有幾個跟頻率有關的參數，像是這個North runs這個zone Communication frequency，還有evaluate internal。 
+
+00:11:22 
+
+謝謝，我們可以根據看一下右圖右圖這裡的話是模擬這個我們。 
+
+00:11:28 
+
+邊寫的就是如果Run十是三，然後Communication frequency interval是二的話，這個情況下會是怎麼樣的一個流程？ 
+
+00:11:41 
+
+我們自己看到這裡實際上是有分成兩種兩種命令，第一種是fit，第二種是evaluate，evaluate的話就是會直接從master傳遞到Rome傳到commander。 
+
+00:11:55 
+
+然後走這樣看著去進行建設的動作，然後驗證的結果就會直接一路傳回這種傳為investor。 
+
+00:12:02 
+
+對，但是fit的話，fit傳到那種再傳給克安德之後，plan德跟zone之間實際上有可能會不止交流一次，就是意思就是說，在zone他自己第一次接收到messer的命令，他再把這個命令傳看的訓練完回傳給zone之後zone這裡。 
+
+00:12:23 
+
+會在。 
+
+00:12:24 
+
+就是弄這邊在聚合完之後會再把聚合完的weight再發給可愛的再做一質詢，那可能會這樣子輪流反覆做幾次，然後這個做幾次就看的是像這裡四的話，就代表zone會再讓可能訓練試質，然後自己聚合4次之後再把這個。 
+
+00:12:44 
+
+聚合完的呃wait還有Magic回傳給Mister。 
+
+00:12:50 
+
+對，然後像我們這邊可以看到。 
+
+00:12:54 
+
+我們現在知道有evaluate跟fit這兩種，呃操作，然後首先如果我們是現在是從頭開始發一個task的話，一開始的話會先根據有沒有這個evaluate initial model method這個參數來決定會不會執行第一次？ 
+
+00:13:13 
+
+然後接著就是要開始正式開始執行訓練，然後訓練的。 
+
+00:13:21 
+
+呃，總Run的數字一張就是看我們now Run，像這裡是三總共約有30倍。 
+
+00:13:27 
+
+然後中間有時候我們還會穿插幾次1杯的這個穿插的頻率呢，就看著就是我們的interval，像這裡設的是二的話，就代表說在。 
+
+00:13:37 
+
+兩次。 
+
+00:13:38 
+
+的時候會有會有一個evaluate被加進來。 
+
+00:13:44 
+
+然後在round的像這裡三round三round都跑結束之後，最後還會有一次就是一定會跑的。 
+
+00:13:51 
+
+但是如果我們的evaluate interval相當，我們這裡設成3的話，那就會跟這個這一倍的就是會重疊到，但是就是Daisy的話，如果inventor設成3的話，最後也是只會有一次一倍的，就是說這這個interval的跟最後一次一定會有那個會被合在一起。 
+
+00:14:18 
+
+糞便第11這些介紹是Daisy在客製化相關的Example。 
+
+00:14:26 
+
+好Daisy這邊可以客製化的是有五種class，第一個是server大舉割，這邊主要負責就是master跟zone裡面的相關處理邏輯，這樣是你可以在裡面加增加一些加解密，或者是要跟客案的做一些溝通。 
+
+00:14:44 
+
+的一些操作。 
+
+00:14:46 
+
+啊，第二種是看這log，幾個就是client內的處理落地client裡面主要就是因為你接收到server過來的一些訊息，如果要解密的話就是在這邊解密，或者是你要在這邊做，就是跟看做其他交流都還在這裡。 
+
+00:15:05 
+
+第三種是吹了缺了菊，主要有三種功能，第一個就是決定要把任務發給哪一些child的，第二種是檢查案，我是不是應該要開始聚合，第3個就是我應該要如何去把這次的wait後面其實做聚合。 
+
+00:15:22 
+
+第4個是Magic Sandler，它主要就是把呃，這一輪fit或evaluate傳遞回來的matrix整理記錄起來，然後如果我們要從外部去查看這次任務，目前的訓練進度的話，可以用mesh三Le去整理目前的進度，然後就做成一個。 
+
+00:15:42 
+
+就是網頁端可以呈現的一個內容。 
+
+00:15:46 
+
+第5個是channel China就是client啟動的時候就會直接被當成是permit傳給client，然後它主要處理就是我們訓練會用到的model還有dacid，就是跟模型實際訓練相關的都會先放在圈的這一塊。 
+
+00:16:06 
+
+投影片第13頁我們先講serverlogic。 
+
+00:16:11 
+
+所有那幾個主要決定的是messer跟loan的運作流機邏輯。 
+
+00:16:17 
+
+通常我們可以看到，呃。右邊的圖片上的第一張這邊，這3個communicator strategy跟matrix handle這3個都是server logic內部自己的一個。 
+
+00:16:36 
+
+變數12點，每一個收到幾個內都會有，呃，這三種對這3個可以當成是so大局的會議用到的工具。 
+
+00:16:46 
+
+這樣，所以的話就是回去問他說，我現在應該要分發任務給哪些人，然後現在是不是要聚合，還有聚合直接操作，沒時間都有，就拿來記錄現在的matrix。 
+
+00:16:59 
+
+Communicator的話，就是你要發展我的時候，就是你把這些你要發任務的child給communic，他去幫你發任務過去，然後主要的話我們有2個，呃。 
+
+00:17:13 
+
+虛擬。 
+
+00:17:16 
+
+防止。 
+
+00:17:17 
+
+還有2個A strict method需要去實作，這2個分別就是你一個是fit的一個是evaluation。 
+
+00:17:26 
+
+也叫做Peter Run。 
+
+00:17:34 
+
+會變第14頁看logic可能logic這邊看這邊跟幾個其實是非常相似的。 
+
+00:17:43 
+
+現在那裡這裡它裡面就會有一個，呃，一個。 
+
+00:17:49 
+
+自己的一個object叫channel，這個channel也是被看logic當成工具，它就是我們一開始在啟動個案的時候就被放在看的內的那個。 
+
+00:18:00 
+
+Chenna。 
+
+00:18:01 
+
+在卡拉拉就給他被扣到fit或者是evalus的時候，他可以直接。 
+
+00:18:06 
+
+找，呃，我們的這個channel，然後用channel裡面的fit跟evaluate去訓練模型，然後都把模型訓練或者是去跑驗證驗證完之後。 
+
+00:18:19 
+
+再回傳給我們的fit function或一倍的function，然後就可以繼續把這些資料整理之後回傳。 
+
+00:18:29 
+
+都會變第一食物業strategy，所以這邊可以分成三種function，我們可以看到，呃，左下角這邊這個是configure的function，這邊有分fit跟evaluate，這個主要就是用來去決定說我要分給。 
+
+00:18:46 
+
+哪一些的這次的任務？ 
+
+00:18:49 
+
+啊，右上角右上角，這邊是wait的方式，也是分fit，還有evaluate，這個就是問說我現在是不是要呃開始aggregate。 
+
+00:18:59 
+
+好右下角，這裡是aggregate的function，它就是負責區把這次的結果做區合。 
+
+00:19:06 
+
+然後這些function都是festrate，就是說如果你要呃去試做一個straight的話，這一些都要去記得去試做，不然可能會編譯不出變異可能。 
+
+00:19:19 
+
+呃，不是，就是，呃，你程式。 
+
+00:19:21 
+
+行。 
+
+00:19:21 
+
+話會有bug會有。 
+
+00:19:29 
+
+呃都很片第16頁，match是handle的主要的會被扣倒，方選就是Surface，裡面會扣update match。 
+
+00:19:42 
+
+或者是evaluate這2個就是分別應對應fit跟evaluate的兩種不同的情況。 
+
+00:19:48 
+
+好，兩者都是會去更新，每幾天抖樂內的一個。 
+
+00:20:01 
+
+沒錢這種類會有一個。 
+
+00:20:04 
+
+基。 
+
+00:20:09 
+
+可以在沒事handle內去記住這一次，這一些每一輪傳進來，這些fit跟matrix。 
+
+00:20:19 
+
+在記錄這些match值之後，當test getaway會被扣到所想要看一下現在task的情況的時候，test gate會通過這個gate matrix這一個方式去獲得現在。 
+
+00:20:34 
+
+情況，這個時候你就可以用你前面從update matrix那裡記錄，現在這些matchis來製作成一個可以在網頁上看的一個像是表格這種的，然後之後讓網頁顯示出來。 
+
+00:20:55 
+
+蛻變第17頁，接下來是China。 
+
+00:20:58 
+
+Janet的話，主要長的會跟flower的channel差不多，就是有分fit跟evaluator。 
+
+00:21:07 
+
+然後get pyramid跟setpairment多少其實是給channel裡面自己用。 
+
+00:21:14 
+
+就是如果你要fit的話，你就會把前面的呃就是你傳進來的server給你的這個。 
+
+00:21:21 
+
+去set到你的model上？ 
+
+00:21:24 
+
+然後你在訓練完之後，你會需要把這個parameter去取出來，然後準備要回傳給server。 
+
+00:21:33 
+
+對，所以這邊10座的話，主要10座就是B的function跟evaluate的function就是你主要這個model跟data set需要做處理。 
+
+00:21:46 
+
+然後可以看到下下面的這張圖。 
+
+00:21:51 
+
+這個channel會在一開始client被啟動的時候就被當參數傳進來。 
+
+00:22:02 
+
+一團遍第18億。 
+
+00:22:05 
+
+接下來要講的是，呃，在建立node的時候，實際上會去執行的程式嘛。 
+
+00:22:13 
+
+右上角，這裡是master在執行的時候的成字法，可以看到我們會給master它GRPC server需要開啟的address，然後還有APIIP跟API pod。這2個指的是tescoaway，它的IP跟port。 
+
+00:22:33 
+
+然後下面這張圖你看到這個是zone zone再啟動的時候的層次化，會需要給它parent跟server edges parent edges就會指的是像是meser就是它的這個loan要連線誰？ 
+
+00:22:50 
+
+錄暗痘我們前面的範例的話就是領到master，所以就是master的server edges，就會是loan的這個print edge。 
+
+00:22:59 
+
+勞zone這裡的server edges的話就是它用自己的這個JV server要開的edges。 
+
+00:23:06 
+
+蛻變第19頁接下來是client client，這邊就需要去實作這個channel，然後channel去給你看到下圖就是實際上看的啟動程式吧，就需要把這個channel當成子參數傳進來。 
+
+00:23:25 
+
+然後。 
+
+00:23:27 
+
+Calendar這裡也會有一個current edge，就是像前面翻譯的話就是zone的survey，這樣can稍微連接到zone身上。 
+
+00:23:38 
+
+然後這個survey的話是因為client這裡會也是會啟動一個J RB server，只不過看這裡javis server它主要只有一個功能，就是如果我們想要關閉的話，我們可以傳給這個GIP server說我們要shut Down。 
+
+00:23:55 
+
+對，但是除此之外不會有其他的看者的個案的去連接到它，然後只是負責關閉的一個server。 
+
+00:24:06 
+
+投影片第一20頁。 
+
+00:24:09 
+
+我們這裡建立node為例。 
+
+00:24:13 
+
+我們這裡，呃，第2個sample為。 
+
+00:24:15 
+
+我們可以直接用一個Python deproed一點py，然後提供給它一個node Yum去快速啟動一個。 
+
+00:24:26 
+
+一個我們設定好的結構，我們這個結構在範例裡面啊，是直接寫在nodes點yamo裡面的，然後是透過deploy點PY去讀這個node diano，按照這個yamo檔去用OS點systems執行。 
+
+00:24:44 
+
+這些messer點PY zone點去來看點PY直接檔案。 
+
+00:24:47 
+
+然後去啟動各個節點。 
+
+00:24:51 
+
+對method點不會重點不來，跟看你把它裡面死，一張就是扣前面講到的那些function。 
+
+00:25:02 
+
+短片21頁，我們在啟動完這些節點之後，接下來就是要發布task，我們右圖可以看到這個就是呃，我們的範例二，裡面的task JSON裡面的。 
+
+00:25:18 
+
+樣子。 
+
+00:25:19 
+
+沒有，我們就是透過HT與host把這個。 
+
+00:25:24 
+
+節省傳到test gateway裡面，然後讓這個mess node是不是還要看的都去讀這一些這個task點決策按照裡面的設定去產生這次的任務。 
+
+00:25:41 
+
+然後我們可以在tutorious的第一個裡面去看這一些key裡面對應的意義。 
+
+00:25:53 
+
+豚遍第22頁。 
+
+00:26:00 
+
+Example二為例，我們可以用這個Python request。 
+
+00:26:06 
+
+臉皮歪歪歪，然後之後給他提供一個task Jason，然後還有一個API的位置，就是說我們的test getaway是在哪一個edges？還有我們要加一下它的路徑，就是這個publish task。 
+
+00:26:22 
+
+對我們去扣這一個HTTV，然後就是因為我們這個Python這個request py是就是在Example裡面已經有了它裡面就是會去讀這個Jason，然後傳給這個後面給的這個API。 
+
+00:26:37 
+
+所以我們就是執行完這個request點PY之後就會把task直接發佈在了task getaway上。 
+
+00:26:50 
+
+導演偏低20。 
+
+00:26:51 
+
+我們在發布task到這個getaway上之後就是直到task被完成前，我們的這個request會就是被掛在這個。 
+
+00:27:05 
+
+HD host那裡就是會等執行接觸之後，HD force才會有response回來。 
+
+00:27:12 
+
+好這個投影片第24頁。 
+
+00:27:17 
+
+在request有response後，我們如果現在是想要結束，我們用deploy點py建立的這些node的話，我們可以通過Python shut Down去關閉我們前面建立的那些master zone跟client。 
+
+00:27:32 
+
+這裡shut Down裡面，它其實是直接去連到。 
+
+00:27:39 
+
+Method這種個案的裡面的grb server。 
+
+00:27:43 
+
+然後他是透過讀在Example裡面的Note，知道這一些server他的jav server看在哪個位置。 
+
+00:27:52 
+
+所以他傳送了這幾個shutdown message給JRV server的jav server，就會把每個node去優雅的關掉。 
+
+00:28:02 
+
+他很偏地，25頁。 
+
+00:28:04 
+
+這裡是實際上我們安裝daily，然後跑一個Example會。 
+
+00:28:11 
+
+好的command首先安裝daily的話，我們再把daily git clone下來之後可以去dev，然後boot straight點SHE這裡去執行這個？ 
+
+00:28:39 
+
+去執行這個script。 
+
+00:28:41 
+
+好，這個時候就會幫你去建立一個daily可以好的環境。 
+
+00:28:46 
+
+然後我們可以去挑一個。 
+
+00:28:49 
+
+我們想要執行的Example，像這我們以sample三為例的話，我們用pip install去把這個Example會用到的一些package下載下來，然後則用Python deployed提供一個yamo檔。 
+
+00:29:04 
+
+然後就簡簡initial model會讓我們的呃，這一整個架構在建立的時候就去順便增加，呃，順便去隨機生成一個model的一個點PY的weight的檔。 
+
+00:29:19 
+
+也要用deploy去生成這個整。 
+
+00:29:24 
+
+好，接下來我們執行Python request，就把task點JSON傳給這個task gateway，然後task gateway給miss node去生成這個test。 
+
+00:29:36 
+
+啊，在這個也開始點PY接收到response之後，我們就可以去把這個用deploy一點P oi建立的架構呃，關起來就是用Python shutdown點py。 
+
+00:29:54 
+
+對遍第26位，我們這裡介紹應該要如何使用daily的hand over的功能？ 
+
+00:30:01 
+
+這裡的很多功能主要是在這個看這log幾個，這裡會有提供2個function，對一個是gate function，第2個是nola function。你看右上角這張圖。 
+
+00:30:16 
+
+第2張圖裡面還會有一個是available zones，對available zones是因為這個，我們這個是Example裡面的一個範例，對Example五裡面它是直接有設定2個edges這2個edges，它是直接寫來看logic裡面。 
+
+00:30:35 
+
+就是說，我們要在這2個AJ之間去hand over。 
+
+00:30:41 
+
+啊，接下來我們看一下右上角右。 
+
+00:30:43 
+
+角這張圖右這張圖我們看到它在第四方是檢查我從server傳過來的。 
+
+00:30:52 
+
+任務裡面有沒有包含這個key？如果包含這個key的話，我就會去檢查說就是12號，我們去檢查一下自己目前的呃anchor get an回傳的就是說我們目前連接到的。 
+
+00:31:09 
+
+Parent，他的ages是。 
+
+00:31:12 
+
+對我在，我們在42行就會知道說現在連接到的是哪一個edges？ 
+
+00:31:20 
+
+後之後，我們就去挑與這個edges不同的另一個edges去當成hand over的對象，然後在53。我們要直接扣handle的方式，然後給它提供一個新的edges，那這樣我們的這個。 
+
+00:31:33 
+
+之後就會去hand over到另一個。 
+
+00:31:37 
+
+Parent上面。 
+
+00:31:41 
+
+對面第27頁不過我們想要在server和can的時間使用sshsl的嘉密通訊的話，我們可以在一開始starstone start client或start。 
+
+00:31:58 
+
+Master的時候給他提供certificates，讓。 
+
+00:32:04 
+
+呃，我們這種client跟梅子之間的通訊可以使用加密連接。 
+
+00:32:10 
+
+對我沒看到這裡client，它有一個是uplink certificate，那它會對應到的就是zone這裡的Down links的cotic。 
+
+00:32:22 
+
+這裡zone的dunixvag的就是對應，說它在啟動server的時候就會用這個Down成是它的一個呃加密用的key。 
+
+00:32:34 
+
+所以我們看的圖包點擊要動的話，我們看這個uplink certificate就要用跟loan這邊的Down link certificates相對應的這個。 
+
+00:32:42 
+
+Key。 
+
+00:32:45 
+
+像zone這裡還會有一個uplink，主要就是因為zone還會有parent，那這個uplink就是用來用去連接plan用的好，這裡的certificate都是會用grpc server創建的時候。 
+
+00:33:00 
+
+那裡的function，然後直接傳給那個function裡面，然後當G IB server在建立的時候就會使用這些CPT。 
+
+00:33:11 
+
+突然遍地28億，這裡的話，我們講的是，呃，在我們Example六裡面的secretary，他失落的方法，因為我們知道誰可以選，它實際上會。呃，不只是簡單的fit，這個步驟就可以。 
+
+00:33:28 
+
+解決的會需要一開始像就是跟各個交易的請求，他們的key然後都把key再分給其他的child機會分成很多個步驟。 
+
+00:33:40 
+
+那我們在誰會給顯這裡的實做到了它的？呃，模式會有點像是這樣，就是從serverlodge跟那裡，他想要執行就是他會把我們現在要做的步驟分成就是每很多個階段。 
+
+00:33:57 
+
+像是因為我們會需要這一根content請求key，然後都再分發key，我們就可以把它分成2個階段，就是我們看這裡圖的。這個63行還有65航分成一個ESC key，還有60萬這個share key這2個階段，然後每一個階段的話，server latch都可以去發一個。 
+
+00:34:19 
+
+Fit下來就是說他就可以直接用communicator。 
+
+00:34:23 
+
+然後發fit。 
+
+00:34:25 
+
+然後讓fit裡面我們在fit的時候直接在這個傳過來的instruction裡面增加一個key，然後裡面key的值就只用就是當成是我們現在的stage是多少，就是用來表示這個stage。 
+
+00:34:40 
+
+然後我們就可以更再看這裡，根據server。 
+
+00:34:44 
+
+那裡的stage設定的值不同去知道說現在應該是處於哪個階段，那這裡有沒有？如果server還在執行ESC keya，那他就把stage調成是ask key，然後這邊看了幾周道就知道現在應該是處於。 
+
+00:34:59 
+
+要呃傳給server key的這個階段，然後我們這邊看著就可以去執行相應的動作就是去把key生成之後傳給server。 
+
+00:35:10 
+
+對所以就如果需要多步驟的一個演算法，它可以透過這個在我們的config裡面去用某個key，然後設置不同子，然後來去做分階段的執行。 
+
+00:35:26 
+
+第一個19頁，這個是呃，結尾了。 

@@ -28,29 +28,34 @@
 # limitations under the License.
 # ==============================================================================
 """Daisy master node app."""
-import sys
-import threading
-import time
-from typing import Optional, Tuple
+from daisyfl.utils.logger import INFO, ERROR
+from typing import Optional, Tuple, Dict, Callable, List
 
-from daisyfl.common import GRPC_MAX_MESSAGE_LENGTH, NodeType
+from daisyfl.utils.logger import log
+from daisyfl.common import (
+    NodeType,
+    GRPC_MAX_MESSAGE_LENGTH,
+)
+from daisyfl.proto.transport_pb2_grpc import add_DaisyServiceServicer_to_server
 from daisyfl.common.client_manager import ClientManager
+from daisyfl.master.grpc_server.grpc_server import (
+    generic_create_grpc_server,
+    start_grpc_server,
+)
 from daisyfl.common.communicator import Communicator
 from daisyfl.common.task_launcher import TaskLauncher
 from daisyfl.common.task_manager import TaskManager
-from daisyfl.master.grpc_server.grpc_server import start_grpc_server
 from daisyfl.master.server_api_handler import ServerListener
-from daisyfl.utils.logger import ERROR, INFO, log
+
+import threading
+import time
 
 DEFAULT_SERVER_ADDRESS = "[::]:8887"
 _cnd_stop: threading.Condition = threading.Condition()
-
-
 def shutdown():
     """Shutdown the Master node."""
     with _cnd_stop:
         _cnd_stop.notify()
-
 
 def start_master(
     *,
@@ -70,10 +75,7 @@ def start_master(
         api_ip=api_ip,
         api_port=api_port,
     )
-    log(
-        INFO,
-        "Master server started.",
-    )
+    log(INFO, "Master server started.",)
 
     # Start gRPC server
     grpc_server = start_grpc_server(
@@ -96,7 +98,7 @@ def start_master(
     grpc_server.stop(grace=1)
     client_manager.shutdown()
     log(INFO, "Master server shutdown")
-    sys.exit(0)
+    exit(0)
 
 
 def _init_defaults(
@@ -106,12 +108,9 @@ def _init_defaults(
 ) -> ClientManager:
     """Initialize the default modules."""
     # client_manager
-    client_manager = ClientManager()
+    client_manager = ClientManager()       
     # communicator
-    communicator = Communicator(
-        client_manager=client_manager,
-        server_address=server_address,
-    )
+    communicator = Communicator(client_manager=client_manager, server_address=server_address,)
     client_manager.set_communicator(communicator)
     # task_launcher
     task_launcher = TaskLauncher(communicator=communicator, client_manager=client_manager)
@@ -121,33 +120,20 @@ def _init_defaults(
         node_type=NodeType.MASTER,
     )
     # start ServerListener
-    listener = _start_server_listener(
-        api_ip=api_ip,
-        api_port=api_port,
-        task_manager=task_manager,
-    )
+    listener = _start_server_listener(api_ip=api_ip, api_port=api_port, task_manager=task_manager,)
     listener.set_get_metrics(task_launcher.get_metrics)
-
+    
     return client_manager
 
-
 # server_listener
-def _start_server_listener(
-    api_ip: str,
-    api_port: int,
-    task_manager: TaskManager,
-) -> ServerListener:
+def _start_server_listener(api_ip: str, api_port: int, task_manager: TaskManager,) -> ServerListener:
     """Start a ServerListener."""
-    listener = ServerListener(
-        api_ip,
-        api_port,
-        task_manager,
-    )
+    listener = ServerListener(api_ip, api_port, task_manager,)
     listener_thread = threading.Thread(target=listener.run, args=())
-    listener_thread.daemon = True
+    listener_thread.setDaemon(True)
     listener_thread.start()
     time.sleep(1)
     if not listener_thread.is_alive():
         log(ERROR, "ServerListner failed")
-        sys.exit(1)
+        exit(1)
     return listener

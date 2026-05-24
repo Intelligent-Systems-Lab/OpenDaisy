@@ -32,14 +32,15 @@
 
 import concurrent.futures
 import sys
-from typing import Any, Callable, Optional, Tuple
+from daisyfl.utils.logger import ERROR
+from typing import Any, Callable, Optional, Tuple, Union
 
 import grpc
 
-from daisyfl.client.grpc_server.client_service_servicer import ClientServiceServicer
 from daisyfl.common import GRPC_MAX_MESSAGE_LENGTH
+from daisyfl.utils.logger import log
 from daisyfl.proto.transport_pb2_grpc import add_DaisyServiceServicer_to_server
-from daisyfl.utils.logger import ERROR, log
+from daisyfl.client.grpc_server.client_service_servicer import ClientServiceServicer
 
 INVALID_CERTIFICATES_ERR_MSG = """
     When setting downlink_certificates.
@@ -51,7 +52,8 @@ AddServicerToServerFn = Callable[..., Any]
 def valid_certificates(downlink_certificates: Tuple[bytes, bytes, bytes]) -> bool:
     """Validate certificates tuple."""
     is_valid = (
-        all(isinstance(certificate, bytes) for certificate in downlink_certificates) and len(downlink_certificates) == 3
+        all(isinstance(certificate, bytes) for certificate in downlink_certificates)
+        and len(downlink_certificates) == 3
     )
 
     if not is_valid:
@@ -69,6 +71,7 @@ def start_grpc_server(
     shutdown_fn: Callable = None,
 ) -> grpc.Server:
     """Create and start a gRPC server running DaisyServiceServicer."""
+
     servicer = ClientServiceServicer(server_address)
     if shutdown_fn is not None:
         servicer.set_shutdown_fn(shutdown_fn)
@@ -97,6 +100,7 @@ def generic_create_grpc_server(
     downlink_certificates: Optional[Tuple[bytes, bytes, bytes]] = None,
 ) -> grpc.Server:
     """Generic function to create a gRPC server with a single servicer."""
+
     # Deconstruct tuple into servicer and function
     servicer, add_servicer_to_server_fn = servicer_and_add_fn
 

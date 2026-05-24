@@ -1,0 +1,11 @@
+torch~=2.0.0
+torchvision~=0.15.1
+tqdm~=4.63.0
+scikit-learn
+numpy
+pyyaml
+joblib
+requests
+matplotlib
+pymongo
+Flask

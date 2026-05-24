@@ -13,8 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Daisy Operator."""
-from .client_logic import ClientLogic as ClientLogic
 from .server_logic import ServerLogic as ServerLogic
+from .client_logic import ClientLogic as ClientLogic
 
 __all__ = [
     "ServerLogic",

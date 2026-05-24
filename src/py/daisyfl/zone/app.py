@@ -28,19 +28,27 @@
 # limitations under the License.
 # ==============================================================================
 """Daisy zone node app."""
-import sys
-import uuid
-from typing import Optional, Tuple
+from daisyfl.utils.logger import INFO, WARNING, ERROR
+from typing import Optional, Tuple, Dict, Callable, List
 
-from daisyfl.common import CID, GRPC_MAX_MESSAGE_LENGTH, NodeType
+from daisyfl.utils.logger import log
+from daisyfl.utils.metadata import metadata_to_dict, dict_to_metadata
+from daisyfl.common import (
+    NodeType,
+    GRPC_MAX_MESSAGE_LENGTH,
+    CID,
+)
+
 from daisyfl.common.client_manager import ClientManager
+from daisyfl.zone.grpc_server.grpc_server import (
+    generic_create_grpc_server,
+    start_grpc_server,
+)
 from daisyfl.common.communicator import Communicator
 from daisyfl.common.task_launcher import TaskLauncher
 from daisyfl.common.task_manager import TaskManager
-from daisyfl.utils.logger import INFO, log
-from daisyfl.utils.metadata import dict_to_metadata, metadata_to_dict
-from daisyfl.zone.grpc_server.grpc_server import start_grpc_server
 from daisyfl.zone.zone_entry import ZoneEntry
+import uuid
 
 DEFAULT_SERVER_ADDRESS = "[::]:8888"
 
@@ -58,10 +66,7 @@ def start_zone(
     client_manager, task_manager = _init_defaults(
         server_address=server_address,
     )
-    log(
-        INFO,
-        "Zone server started.",
-    )
+    log(INFO, "Zone server started.",)
 
     # metadata
     metadata = _init_metadata()
@@ -96,7 +101,7 @@ def start_zone(
     grpc_server.stop(grace=1)
     client_manager.shutdown()
     log(INFO, "Zone server shutdown")
-    sys.exit(0)
+    exit(0)
 
 
 def _init_defaults(
@@ -104,12 +109,9 @@ def _init_defaults(
 ) -> Tuple[ClientManager, TaskManager]:
     """Initialize the default modules."""
     # client_manager
-    client_manager = ClientManager()
+    client_manager = ClientManager()       
     # communicator
-    communicator = Communicator(
-        client_manager=client_manager,
-        server_address=server_address,
-    )
+    communicator = Communicator(client_manager=client_manager, server_address=server_address,)
     client_manager.set_communicator(communicator)
     # task_launcher
     task_launcher = TaskLauncher(communicator=communicator, client_manager=client_manager)
@@ -117,12 +119,11 @@ def _init_defaults(
     task_manager = TaskManager(
         task_launcher=task_launcher,
         node_type=NodeType.ZONE,
-    )
-
+    )  
+    
     return client_manager, task_manager
 
-
-def _init_metadata() -> Tuple:
+def _init_metadata()->Tuple:
     """Initialize a metadata to build connection with Master node."""
     metadata_dict = metadata_to_dict(metadata=((),), check_required=False, check_reserved=True)
     metadata_dict[CID] = "zone_" + str(uuid.uuid4())

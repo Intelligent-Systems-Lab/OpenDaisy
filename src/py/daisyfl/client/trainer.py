@@ -32,7 +32,12 @@
 
 from abc import ABC
 
-from daisyfl.common import EvaluateIns, EvaluateRes, FitIns, FitRes
+from daisyfl.common import (
+    EvaluateIns,
+    EvaluateRes,
+    FitIns,
+    FitRes,
+)
 
 
 class Trainer(ABC):
@@ -48,7 +53,7 @@ class Trainer(ABC):
             received from the Zone node and a dictionary of configuration values
             used to customize the local training process.
 
-        Returns:
+        Returns
         -------
         FitRes
             The training result containing updated parameters and other details
@@ -65,7 +70,7 @@ class Trainer(ABC):
             received from the Zone node and a dictionary of configuration values
             used to customize the local evaluation process.
 
-        Returns:
+        Returns
         -------
         EvaluateRes
             The evaluation result containing the loss on the local dataset and

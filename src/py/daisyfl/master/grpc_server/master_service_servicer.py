@@ -32,32 +32,39 @@
 Relevant knowledge for reading this modules code:
     - https://github.com/grpc/grpc/blob/master/doc/statuscodes.md
 """
-from threading import Event
-from typing import Callable, Dict, Iterator, Optional, Tuple
-
+from contextlib import contextmanager
+from typing import Callable, Iterator, Any, Dict, Tuple, Optional
+import timeit
 import grpc
 from iterators import TimeoutIterator
 
+from daisyfl.proto import transport_pb2_grpc
+from daisyfl.proto.transport_pb2 import ClientMessage, ServerMessage
+from daisyfl.common.client_manager import ClientManager
+from daisyfl.common.grpc_bridge import GRPCBridge
+from daisyfl.utils.connection import grpc_connection
+from daisyfl.common.grpc_client_proxy import GrpcClientProxy
+from daisyfl.utils.logger import log
+from daisyfl.utils import daisyfl_serde
+from daisyfl.utils.metadata import metadata_to_dict, dict_to_metadata
+from daisyfl.utils.logger import INFO, WARNING, DEBUG, ERROR
 from daisyfl.common import (
-    CID,
+    ClientStatus,
+    ServerStatus,
     CLIENT_HANDLING,
     CLIENT_IDLING,
     SERVER_IDLING,
     SERVER_WAITING,
-    ClientStatus,
+    CID,
     ErrorCode,
     ServerReceivedSignal,
-    ServerStatus,
     Status,
+    FitRes,
+    Parameters,
 )
-from daisyfl.common.client_manager import ClientManager
-from daisyfl.common.grpc_bridge import GRPCBridge
-from daisyfl.common.grpc_client_proxy import GrpcClientProxy
-from daisyfl.proto import transport_pb2_grpc
-from daisyfl.proto.transport_pb2 import ClientMessage, ServerMessage
-from daisyfl.utils import daisyfl_serde
-from daisyfl.utils.logger import DEBUG, ERROR, log
-from daisyfl.utils.metadata import metadata_to_dict
+from daisyfl.proto.transport_pb2_grpc import DaisyServiceStub
+from threading import Condition, Event
+
 
 WAIT_FOR_SERVER_STATE_TRANSITION = 5
 
@@ -90,7 +97,6 @@ def register_client(
 
     return is_success
 
-
 class MasterServiceServicer(transport_pb2_grpc.DaisyServiceServicer):
     """MasterServiceServicer for bi-directional gRPC message stream."""
 
@@ -99,14 +105,14 @@ class MasterServiceServicer(transport_pb2_grpc.DaisyServiceServicer):
         client_manager: ClientManager,
         server_address: str,
         grpc_bridge_factory: Callable[[bool], GRPCBridge] = default_bridge_factory,
-        grpc_client_factory: Callable[[GRPCBridge, Dict], GrpcClientProxy] = default_grpc_client_factory,
+        grpc_client_factory: Callable[
+            [GRPCBridge, Dict], GrpcClientProxy
+        ] = default_grpc_client_factory,
     ) -> None:
-        """Initialize MasterServiceServicer."""
         self.client_manager: ClientManager = client_manager
         self.server_address: str = server_address
         self.grpc_bridge_factory = grpc_bridge_factory
         self.client_factory = grpc_client_factory
-        self.shutdown_fn: Optional[Callable] = None
 
     def Join(
         self,
@@ -116,18 +122,14 @@ class MasterServiceServicer(transport_pb2_grpc.DaisyServiceServicer):
         """Method will be invoked by each zone_entry which participates in the network."""
         # process Iterator
         client_timeout_iterator = TimeoutIterator(iterator=request_iterator, reset_on_next=True)
-        client_message, success = self.get_client_message(
-            client_message_iterator=client_timeout_iterator, context=context, timeout=None
-        )
+        client_message, success = self.get_client_message(client_message_iterator=client_timeout_iterator, context=context, timeout=None)
         if not success:
             return
         field = client_message.WhichOneof("msg")
         # FL message streaming
         if field == "client_status":
             client_status: ClientStatus = daisyfl_serde.client_status_from_proto(client_message.client_status)
-            yield from self.handle_local_connection(
-                client_timeout_iterator=client_timeout_iterator, context=context, client_status=client_status
-            )
+            yield from self.handle_local_connection(client_timeout_iterator=client_timeout_iterator, context=context, client_status=client_status)
         # shutdown request
         elif field == "shutdown":
             self.shutdown()
@@ -135,7 +137,7 @@ class MasterServiceServicer(transport_pb2_grpc.DaisyServiceServicer):
         else:
             log(ERROR, "Receive unexpected message type.")
             return
-
+    
     def handle_local_connection(
         self,
         client_timeout_iterator: Iterator[ClientMessage],
@@ -153,9 +155,7 @@ class MasterServiceServicer(transport_pb2_grpc.DaisyServiceServicer):
             return
 
         # register client_proxy
-        metadata_dict = metadata_to_dict(
-            metadata=context.invocation_metadata(), check_reserved=False, check_required=True
-        )
+        metadata_dict = metadata_to_dict(metadata=context.invocation_metadata(), check_reserved=False, check_required=True)
         bridge = self.grpc_bridge_factory(client_idling)
         client_proxy = self.client_factory(bridge, metadata_dict)
         if not register_client(self.client_manager, client_proxy, context):
@@ -172,9 +172,7 @@ class MasterServiceServicer(transport_pb2_grpc.DaisyServiceServicer):
         else:
             try:
                 # receive client uploading signal
-                client_message, success = self.get_client_message(
-                    client_message_iterator=client_timeout_iterator, context=context, timeout=None
-                )
+                client_message, success = self.get_client_message(client_message_iterator=client_timeout_iterator, context=context, timeout=None)
                 if (not success) or (client_message.WhichOneof("msg") != "client_uploading_signal"):
                     return
                 log(DEBUG, "Receive ClientUploadingSignal")
@@ -188,9 +186,7 @@ class MasterServiceServicer(transport_pb2_grpc.DaisyServiceServicer):
                 yield server_status_msg
                 log(DEBUG, "Send ServerStatus")
                 # get the result
-                client_message, success = self.get_client_message(
-                    client_message_iterator=client_timeout_iterator, context=context, timeout=None
-                )
+                client_message, success = self.get_client_message(client_message_iterator=client_timeout_iterator, context=context, timeout=None)
                 if success:
                     # set client_message to grpc_bridge if server is waiting
                     if server_waiting:
@@ -199,9 +195,7 @@ class MasterServiceServicer(transport_pb2_grpc.DaisyServiceServicer):
                     # ignore the client_message if server is not waiting
                     # send server received signal
                     srs = ServerReceivedSignal(status=Status(error_code=ErrorCode.OK, message=""))
-                    server_message = ServerMessage(
-                        server_received_signal=daisyfl_serde.server_received_signal_to_proto(srs)
-                    )
+                    server_message = ServerMessage(server_received_signal=daisyfl_serde.server_received_signal_to_proto(srs))
                     yield server_message
                     log(DEBUG, "Send ServerReceivedSignal")
                     # wait
@@ -210,26 +204,15 @@ class MasterServiceServicer(transport_pb2_grpc.DaisyServiceServicer):
                 return
 
     # communication
-    @staticmethod
-    def get_server_message(
-        client_proxy: GrpcClientProxy,
-    ) -> Iterator[ServerMessage]:
+    def get_server_message(self, client_proxy: GrpcClientProxy,) -> Iterator[ServerMessage]:
         """Get the next ServerMessage from gRPC bridge."""
         log(DEBUG, "Try sending ServerMessage")
         _server_message_iterator = client_proxy.bridge.server_message_iterator()
-        try:
-            # Get server_message from bridge
-            server_message: ServerMessage = next(_server_message_iterator)
-            yield server_message
-        except StopIteration:
-            return
+        # Get server_message from bridge
+        server_message: ServerMessage = next(_server_message_iterator)
+        yield server_message
 
-    @staticmethod
-    def get_client_message(
-        client_message_iterator: TimeoutIterator,
-        context: grpc.ServicerContext,
-        timeout: Optional[int] = None,
-    ) -> Tuple[ClientMessage, bool]:
+    def get_client_message(self, client_message_iterator: TimeoutIterator,  context: grpc.ServicerContext, timeout: Optional[int] = None,) -> Tuple[ClientMessage, bool]:
         """Receive a ClientMessage from a ZoneEntry."""
         log(DEBUG, "Try receiving ClientMessage")
         if timeout is not None:
@@ -260,9 +243,7 @@ class MasterServiceServicer(transport_pb2_grpc.DaisyServiceServicer):
         """Set a callback function to shutdown the Master service."""
         self.shutdown_fn: Callable = shutdown_fn
 
-    def shutdown(
-        self,
-    ):
+    def shutdown(self,):
         """Shutdown the Master service."""
-        if self.shutdown_fn is not None:
-            self.shutdown_fn()
+        self.shutdown_fn()
+        return

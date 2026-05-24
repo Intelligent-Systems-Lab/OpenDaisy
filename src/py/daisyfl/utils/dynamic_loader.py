@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Utility for dynamically loading objects from modules by name."""
-
 
 def dynamic_load(m, obj):
     """Dynamically load an object from a module."""

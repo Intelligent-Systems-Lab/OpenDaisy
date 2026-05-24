@@ -31,9 +31,9 @@
 
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
-from daisyfl.common import EvaluateIns, EvaluateRes, FitIns, FitRes, Parameters, SubtaskStatus
+from daisyfl.common import EvaluateIns, EvaluateRes, FitIns, FitRes, Parameters, Scalar, SubtaskStatus
 from daisyfl.common.client_proxy import ClientProxy
 
 
@@ -41,9 +41,11 @@ class Strategy(ABC):
     """Abstract base class for Daisy strategy implementations."""
 
     @abstractmethod
-    def configure_fit(self, parameters: Parameters, config: Dict, **kwargs) -> List[Tuple[ClientProxy, FitIns]]:
+    def configure_fit(
+        self, parameters: Parameters, config: Dict, **kwargs
+    ) -> List[Tuple[ClientProxy, FitIns]]:
         """Configure the next round of fitting."""
-
+    
     @abstractmethod
     def configure_evaluate(
         self, parameters: Parameters, config: Dict, **kwargs
@@ -51,11 +53,15 @@ class Strategy(ABC):
         """Configure the next round of evaluating."""
 
     @abstractmethod
-    def wait_fit(self, subtask_status: SubtaskStatus, **kwargs) -> bool:
+    def wait_fit(
+        self, subtask_status: SubtaskStatus, **kwargs
+    ) -> bool:
         """Wait for the termination condition of fitting."""
 
     @abstractmethod
-    def wait_evaluate(self, subtask_status: SubtaskStatus, **kwargs) -> bool:
+    def wait_evaluate(
+        self, subtask_status: SubtaskStatus, **kwargs
+    ) -> bool:
         """Wait for the termination condition of evaluating."""
 
     @abstractmethod
@@ -73,3 +79,4 @@ class Strategy(ABC):
         **kwargs,
     ) -> Dict:
         """Aggregate evaluation results."""
+

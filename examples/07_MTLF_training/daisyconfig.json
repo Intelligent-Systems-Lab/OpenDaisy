@@ -1,0 +1,4 @@
+{
+    "MONGO_URI": "mongodb://127.0.0.1:27018",
+    "DATA_DIRS": "ees_training_data"
+}

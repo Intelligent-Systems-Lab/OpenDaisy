@@ -31,9 +31,14 @@
 
 
 from abc import ABC, abstractmethod
-from typing import Callable
+from typing import Optional, Union, Callable
 
-from daisyfl.common import EvaluateIns, FitIns
+from daisyfl.common import (
+    EvaluateIns,
+    EvaluateRes,
+    FitIns,
+    FitRes,
+)
 from daisyfl.proto.transport_pb2 import ClientMessage
 
 
@@ -41,7 +46,6 @@ class ClientProxy(ABC):
     """Abstract base class for Daisy client proxies."""
 
     def __init__(self, cid: str):
-        """Initialize ClientProxy with a client ID."""
         self.cid = cid
 
     @abstractmethod
@@ -62,7 +66,6 @@ class ClientProxy(ABC):
     def submit_client_message(
         self,
         client_message: ClientMessage,
-        **kwargs,
     ) -> None:
         """Receive, deserialize, and submit a ClientMessage."""
 
@@ -77,3 +80,4 @@ class ClientProxy(ABC):
     @abstractmethod
     def set_client_status_transition_fn(self, client_status_transition: Callable) -> None:
         """Set callback function for client status transition."""
+    

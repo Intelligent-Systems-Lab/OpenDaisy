@@ -15,14 +15,30 @@
 """Contextmanager managing a gRPC channel to the Daisy server."""
 
 
-from threading import Condition, Event
-from typing import Callable, Optional, Tuple
-
-from daisyfl.common import ANCHOR, GRPC_MAX_MESSAGE_LENGTH, HANDOVER, UPLINK_CERTIFICATES
-from daisyfl.proto.transport_pb2 import ClientMessage
+from contextlib import contextmanager
+from daisyfl.utils.logger import DEBUG, INFO, WARNING, ERROR
+from queue import Queue
+from typing import Callable, Iterator, Optional, Tuple, Any, Dict, List
 from daisyfl.utils.connection import grpc_connection
-from daisyfl.utils.logger import DEBUG, INFO, WARNING, log
-from daisyfl.utils.metadata import dict_to_metadata, metadata_to_dict
+
+import grpc
+from threading import Condition, Event
+
+from daisyfl.common import (
+    HANDOVER,
+    UPLINK_CERTIFICATES,
+    ANCHOR,
+    GRPC_MAX_MESSAGE_LENGTH,
+    CLIENT_IDLING,
+    CLIENT_HANDLING,
+    ClientStatus,
+)
+from daisyfl.utils import daisyfl_serde
+from daisyfl.utils.logger import log
+from daisyfl.utils.metadata import metadata_to_dict, dict_to_metadata
+from daisyfl.proto.transport_pb2 import ClientMessage, ServerMessage
+from daisyfl.proto.transport_pb2_grpc import DaisyServiceStub
+from iterators import TimeoutIterator
 
 # The following flags can be uncommented for debugging. Other possible values:
 # https://github.com/grpc/grpc/blob/master/doc/environment_variables.md
@@ -41,39 +57,37 @@ def _process_metadata(
     handover: bool,
 ) -> Tuple:
     metadata_dict = metadata_to_dict(metadata=metadata, check_reserved=False, check_required=True)
-
+    
     if anchor is not None:
         metadata_dict[ANCHOR] = anchor
     elif metadata_dict.__contains__(ANCHOR):
         del metadata_dict[ANCHOR]
-
+    
     if uplink_certificates is not None:
         metadata_dict[UPLINK_CERTIFICATES] = uplink_certificates
     elif metadata_dict.__contains__(UPLINK_CERTIFICATES):
         del metadata_dict[UPLINK_CERTIFICATES]
-
+    
     if handover:
         metadata_dict[HANDOVER] = "handover"
     elif metadata_dict.__contains__(HANDOVER):
         del metadata_dict[HANDOVER]
-
+    
     return dict_to_metadata(metadata_dict)
 
 
 class C2ZConnection:
     """Connection between Zone node and Client node."""
 
-    def __init__(
-        self,
+    def __init__(self,
         # for grpc_connection
         parent_address: str = None,
         max_message_length: int = GRPC_MAX_MESSAGE_LENGTH,
         uplink_certificates: Optional[bytes] = None,
         metadata: Tuple = (),
         # sync up
-        client_entry=None,
+        client_entry = None,
     ):
-        """Initialize C2ZConnection with connection parameters and synchronization events."""
         # transmission
         self.send: Callable = None
         self.receive: Callable = None
@@ -91,10 +105,8 @@ class C2ZConnection:
         self._busy: bool = False
         # sync up
         self._client_entry = client_entry
-
-    def run(
-        self,
-    ):
+        
+    def run(self,):
         """Enable connection between Zone node and Client node."""
         while True:
             # Wait for ClientEntry ready and for reconnection
@@ -102,12 +114,7 @@ class C2ZConnection:
             self.event_reconn.wait()
             log(DEBUG, "Connector reconnecting")
             try:
-                self._metadata = _process_metadata(
-                    metadata=self._metadata,
-                    anchor=self._anchor,
-                    uplink_certificates=self._uplink_certificates,
-                    handover=self._check_handover(),
-                )
+                self._metadata = _process_metadata(metadata=self._metadata, anchor=self._anchor, uplink_certificates=self._uplink_certificates, handover=self._check_handover())
                 with grpc_connection(self._parent_address, self._metadata, self._uplink_certificates) as conn:
                     self.send, self.receive = conn
                     # send ClientStatus
@@ -118,16 +125,14 @@ class C2ZConnection:
                     log(DEBUG, "ClientEntry's term")
                     # Wait for ConnectionFail
                     self.event_disconn.wait()
-                    log(INFO, "Sleep for %s seconds", SLEEP_DURATION)
+                    log(INFO, "Sleep for " + str(SLEEP_DURATION) + " seconds")
                     Event().wait(timeout=SLEEP_DURATION)
                     log(DEBUG, "Connector's term")
             except:
-                log(INFO, "Sleep for %s seconds", SLEEP_DURATION)
+                log(INFO, "Sleep for " + str(SLEEP_DURATION) + " seconds")
                 Event().wait(timeout=SLEEP_DURATION)
 
-    def _check_handover(
-        self,
-    ) -> bool:
+    def _check_handover(self, ) -> bool:
         """Check if the current connected Zone node is the anchor."""
         if (self._anchor is not None) and (self._parent_address is not None):
             if self._anchor != self._parent_address:
@@ -135,10 +140,7 @@ class C2ZConnection:
         return False
 
     # external APIs
-    def reconnect(
-        self,
-    ) -> bool:
-        """Request a reconnection to the Zone node."""
+    def reconnect(self,) -> bool:
         with self._cnd_api:
             while self._busy:
                 self._cnd_api.wait()
@@ -146,12 +148,16 @@ class C2ZConnection:
         ###
         result = False
         if not self.event_disconn.is_set():
-            log(WARNING, "Try reconnecting before disconnecting. Do nothing.")
+            log(
+                WARNING,
+                "Try reconnecting before disconnecting. " + \
+                "Do nothing."
+            )
         elif self.event_reconn.is_set():
             log(
                 WARNING,
-                "Another reconnection request has not been handled or the connection has not been built. "
-                "Do nothing.",
+                "Another reconnection request has not been handled or the connection has not been built. " + \
+                "Do nothing."
             )
         else:
             self.event_reconn.set()
@@ -162,10 +168,7 @@ class C2ZConnection:
             self._cnd_api.notify_all()
         return result
 
-    def disconnect(
-        self,
-    ) -> bool:
-        """Request a disconnection from the Zone node."""
+    def disconnect(self,) -> bool:
         with self._cnd_api:
             while self._busy:
                 self._cnd_api.wait()
@@ -175,8 +178,8 @@ class C2ZConnection:
         if self.event_disconn.is_set():
             log(
                 WARNING,
-                "Another disconnection request has not been handled or the connection has not been built. "
-                "Do nothing.",
+                "Another disconnection request has not been handled or the connection has not been built. " + \
+                "Do nothing."
             )
         else:
             self.event_disconn.set()
@@ -187,9 +190,7 @@ class C2ZConnection:
             self._cnd_api.notify_all()
         return result
 
-    def get_anchor(
-        self,
-    ) -> Optional[str]:
+    def get_anchor(self,) -> Optional[str]:
         """Get the current anchor."""
         return self._anchor
 
@@ -197,7 +198,7 @@ class C2ZConnection:
         """Label the current connected Zone node as the anchor."""
         if reset:
             self._anchor = None
-        else:
+        else:    
             self._anchor = self._parent_address
 
     def handover(self, new_parent_address: str) -> None:
@@ -214,8 +215,5 @@ class C2ZConnection:
         with self._cnd_api:
             self._cnd_api.notify_all()
 
-    def get_metadata(
-        self,
-    ) -> Tuple:
-        """Return the metadata tuple associated with this connection."""
+    def get_metadata(self,) -> Tuple:
         return self._metadata

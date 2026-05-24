@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Daisy constants."""
 
 # task
 ACCURACY = "ACCURACY"
@@ -40,6 +39,7 @@ MIN_WAITING_TIME_ZONE = "MIN_WAITING_TIME_ZONE"
 MODEL_PATH = "MODEL_PATH"
 NUM_ROUNDS = "NUM_ROUNDS"
 OPERATORS = "OPERATORS"
+CALLBACK_URL = "CALLBACK_URL"
 SAVE_MODEL = "SAVE_MODEL"
 SERVER_WAITING = "SERVER_WAITING"
 SERVER_IDLING = "SERVER_IDLING"
@@ -53,5 +53,6 @@ ZONE_STRATEGY = "ZONE_STRATEGY"
 # metadata
 ANCHOR = "anchor"
 CID = "cid"
-HANDOVER = "handover"
+HANDOVER= "handover"
 UPLINK_CERTIFICATES = "uplink_certificates"
+

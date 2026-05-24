@@ -44,7 +44,9 @@ LOGGER_NAME = "daisy"
 Daisy_LOGGER = logging.getLogger(LOGGER_NAME)
 Daisy_LOGGER.setLevel(DEBUG)
 
-DEFAULT_FORMATTER = logging.Formatter("%(levelname)s %(name)s %(asctime)s | %(filename)s:%(lineno)d | %(message)s")
+DEFAULT_FORMATTER = logging.Formatter(
+    "%(levelname)s %(name)s %(asctime)s | %(filename)s:%(lineno)d | %(message)s"
+)
 
 # Configure console logger
 console_handler = logging.StreamHandler()
@@ -65,8 +67,7 @@ class CustomHTTPHandler(HTTPHandler):
         secure: bool = False,
         credentials: Optional[Tuple[str, str]] = None,
     ) -> None:
-        """Initialize CustomHTTPHandler with an identifier and HTTP connection parameters."""
-        super().__init__(host, url, method, secure, credentials)
+        super(CustomHTTPHandler, self).__init__(host, url, method, secure, credentials)
         self.identifier = identifier
 
     def mapLogRecord(self, record: LogRecord) -> Dict[str, Any]:
@@ -83,8 +84,11 @@ class CustomHTTPHandler(HTTPHandler):
         }
 
 
-def configure(identifier: str, filename: Optional[str] = None, host: Optional[str] = None) -> None:
+def configure(
+    identifier: str, filename: Optional[str] = None, host: Optional[str] = None
+) -> None:
     """Configure logging to file and/or remote log server."""
+
     # Create formatter
     string_to_input = f"{identifier} | %(levelname)s %(name)s %(asctime)s "
     string_to_input += "| %(filename)s:%(lineno)d | %(message)s"

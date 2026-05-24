@@ -32,15 +32,15 @@
 Relevant knowledge for reading this modules code:
     - https://github.com/grpc/grpc/blob/master/doc/statuscodes.md
 """
-from typing import Callable, Iterator, Optional, Tuple
-
+from contextlib import contextmanager
+from typing import Callable, Iterator, Any, Dict, Tuple, Optional
 import grpc
 from iterators import TimeoutIterator
 
 from daisyfl.proto import transport_pb2_grpc
 from daisyfl.proto.transport_pb2 import ClientMessage, ServerMessage
-from daisyfl.utils.logger import DEBUG, ERROR, log
-
+from daisyfl.utils.logger import log
+from daisyfl.utils.logger import INFO, WARNING, DEBUG, ERROR
 
 class ClientServiceServicer(transport_pb2_grpc.DaisyServiceServicer):
     """ClientServiceServicer for bi-directional gRPC message stream."""
@@ -49,14 +49,12 @@ class ClientServiceServicer(transport_pb2_grpc.DaisyServiceServicer):
         self,
         server_address: str,
     ) -> None:
-        """Initialize ClientServiceServicer with the client's server address."""
         self.server_address: str = server_address
-        self.shutdown_fn: Optional[Callable] = None
-
+    
     def set_shutdown_fn(self, shutdown_fn: Callable):
         """Set a callback function to shutdown the Client."""
-        self.shutdown_fn = shutdown_fn
-
+        self.shutdown_fn: Callable = shutdown_fn
+        
     def Join(
         self,
         request_iterator: Iterator[ClientMessage],
@@ -65,33 +63,24 @@ class ClientServiceServicer(transport_pb2_grpc.DaisyServiceServicer):
         """Method will be invoked by users."""
         # process Iterator
         client_timeout_iterator = TimeoutIterator(iterator=request_iterator, reset_on_next=True)
-        client_message, success = self.get_client_message(
-            client_message_iterator=client_timeout_iterator,
-            context=context,
-        )
+        client_message, success = self.get_client_message(client_message_iterator=client_timeout_iterator, context=context,)
         if not success:
             return
         field = client_message.WhichOneof("msg")
         if field == "shutdown":
             self.shutdown()
             return
+        else:
+            log(ERROR, "Receive unexpected message type.")
+            return
 
-        log(ERROR, "Receive unexpected message type.")
-
-    def shutdown(
-        self,
-    ):
+    def shutdown(self,):
         """Shutdown the Client."""
-        if self.shutdown_fn is not None:
-            self.shutdown_fn()
+        self.shutdown_fn()
+        return
 
     # communication
-    @staticmethod
-    def get_client_message(
-        client_message_iterator: TimeoutIterator,
-        context: grpc.ServicerContext,
-        timeout: Optional[int] = None,
-    ) -> Tuple[ClientMessage, bool]:
+    def get_client_message(self, client_message_iterator: TimeoutIterator,  context: grpc.ServicerContext, timeout: Optional[int] = None,) -> Tuple[ClientMessage, bool]:
         """Receive a ClientMessage from users."""
         log(DEBUG, "Try receiving ClientMessage")
         if timeout is not None:
@@ -115,3 +104,4 @@ class ClientServiceServicer(transport_pb2_grpc.DaisyServiceServicer):
             # this execution context by raising an exception.
             return client_message, False
         return client_message, True
+

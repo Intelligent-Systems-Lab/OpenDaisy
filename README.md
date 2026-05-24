@@ -1,19 +1,20 @@
-# Daisy - A Novel Federated Learning Framework for Edge-Driven AIoT Model Development
-Daisy is a federated learning (FL) framework designed to provide hierarchical, distributed node deployment, integrating technologies such as 5G and multi-access edge computing (MEC). It addresses issues like mobility, unstable networks, and inconsistent data availability for mobile smart agents such as vehicles and robots. Daisy offers the following advantages:
+# Daisy [MTLF-daisy] - 5G NWDAF MTLF Implementation
+This branch (`MTLF-daisy`) is a specialized version of Daisy core designed for **5G NWDAF (Network Data Analytics Function)** and **MTLF (Model Training and Learning Function)** scenarios. It extends the core OpenDaisy framework with professional MLOps automation, asynchronous task handling, and deep integration with 5G infrastructure.
 
-- Flexibility: Daisy supports both star topology and hierarchical topology.
-- Reliability: Daisy accounts for unstable network environments and offers a connection recovery mechanism.
-- Mobility-aware: Daisy allows mobile clients to upload their local models to nearby edge servers, significantly reducing communication costs, minimizing latency, and improving upload success rates.
+## Key Features (MTLF-daisy)
+Compared to the standard OpenDaisy, this branch includes:
+- **Asynchronous Task Execution**: Immediate `202 Accepted` response with background training and Webhook callbacks.
+- **Automated Client Lifecycle**: Dynamic spawning of client processes based on task configurations and group IDs.
+- **5G Data Integration**: Built-in MongoDB support for handling 3GPP-compliant traffic statistics via `/upload_data` API.
+- **Dynamic Model Deployment**: On-the-fly model construction using `MODEL_META` without predefined classes.
+- **Automated Artifact Management**: Automatic packaging of weights, scalers, and metadata for HTTP download.
+- **Warm-start Support**: Native support for Seed Models and Fixed Scalers to enable fine-tuning.
 
+## Who is Daisy [MTLF-daisy] for?
+- Researchers implementing 3GPP NWDAF/MTLF specifications.
+- Developers needing an automated, production-ready Federated Learning MLOps pipeline for 5G.
+- Users requiring asynchronous training workflows and dynamic client management.
 
-## Who is Daisy for?
-Daisy is highly extensible, enabling users and developers to port most existing FL algorithms. We particularly recommend Daisy for researchers and developers working in the following scenarios:
-
-- Traditional FL
-- Hierarchical FL
-- FL with unstable networks
-- FL with mobile clients
-- Asynchronous FL
 
 
 ## Installation
@@ -30,4 +31,5 @@ Several examples are provided to quickly familiarize Daisy:
 - [Start FL with asynchronous communication](doc/tutorial/04_asynchronous_fl.md)
 - [Upload FL models by proximal transmission](doc/tutorial/05_proximal_transmission.md)
 - [Protect FL models using secure aggregation](doc/tutorial/06_secure_aggregation.md)
+- [MTLF Training with MongoDB and MLOps](examples/07_MTLF_training/README.md)
 
