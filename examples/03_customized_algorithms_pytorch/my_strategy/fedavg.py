@@ -72,6 +72,7 @@ class MyFedAvg(Strategy):
         num_clients_evaluate: int = 2,
         min_results_fit: int = 2,
         min_results_evaluate: int = 2,
+        **kwargs,
     ) -> None:
         """Federated Averaging strategy.
 

@@ -70,11 +70,13 @@ class SecAgg(Strategy):
         num_clients_evaluate: int = 2,
         min_results_fit: int = 2,
         min_results_evaluate: int = 2,
+        **kwargs,
     ) -> None:
         """Secure Aggregation [Keith Bonawitz et al., 2017] strategy.
 
         Implementation based on https://eprint.iacr.org/2017/281.pdf
         """
+        super().__init__(**kwargs)
         self.client_manager = client_manager
         self.num_clients_fit = num_clients_fit
         self.num_clients_evaluate = num_clients_evaluate

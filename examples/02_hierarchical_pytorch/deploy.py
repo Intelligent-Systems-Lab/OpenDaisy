@@ -15,13 +15,13 @@ args = parser.parse_args()
 def deploy_master(address, api_ip, api_port):
     """deploy master"""
     if args.init_model:
-        os.system("python master.py --server_address={} --api_ip={} --api_port={} --init_model &".format(
+        os.system("python3 master.py --server_address={} --api_ip={} --api_port={} --init_model &".format(
             address,
             api_ip,
             api_port
         ))
     else:
-        os.system("python master.py --server_address={} --api_ip={} --api_port={} &".format(
+        os.system("python3 master.py --server_address={} --api_ip={} --api_port={} &".format(
             address,
             api_ip,
             api_port
@@ -30,7 +30,7 @@ def deploy_master(address, api_ip, api_port):
 
 def deploy_zone(address, parent):
     """deploy zone"""
-    os.system("python zone.py --server_address={} --parent_address={} &".format(
+    os.system("python3 zone.py --server_address={} --parent_address={} &".format(
         address,
         parent
     ))
@@ -38,7 +38,7 @@ def deploy_zone(address, parent):
 
 def deploy_client(address, parent):
     """deploy client"""
-    os.system("python client.py --server_address={} --parent_address={} &".format(
+    os.system("python3 client.py --server_address={} --parent_address={} &".format(
         address,
         parent
     ))

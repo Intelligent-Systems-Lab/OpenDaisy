@@ -71,11 +71,13 @@ class FedAvg(Strategy):
         num_clients_evaluate: int = 2,
         min_results_fit: int = 2,
         min_results_evaluate: int = 2,
+        **kwargs,
     ) -> None:
         """Federated Averaging strategy.
 
         Implementation based on https://arxiv.org/abs/1602.05629
         """
+        super().__init__(**kwargs)
         self.client_manager = client_manager
         self.num_clients_fit = num_clients_fit
         self.num_clients_evaluate = num_clients_evaluate
@@ -138,13 +140,17 @@ class FedAvg(Strategy):
         """Aggregate fit results using weighted average."""
         # parameters
         weighted_results = [
-            (parameters_to_ndarrays(fit_res.parameters), fit_res.config[METRICS][DATA_SAMPLES])
-            for _, fit_res in results
+            (parameters_to_ndarrays(fit_res.parameters), fit_res.config.get(METRICS, {}).get(DATA_SAMPLES, 0))
+            for _, fit_res in results if fit_res.config.get(METRICS, {}).get(DATA_SAMPLES, 0) > 0
         ]
+        
+        if len(weighted_results) == 0:
+            return kwargs.get("parameters"), {DATA_SAMPLES: 0}
+            
         parameters_aggregated = ndarrays_to_parameters(aggregate_fedavg(weighted_results))
 
         # metrics
-        metrics_aggregated = {DATA_SAMPLES: sum([fit_res.config[METRICS][DATA_SAMPLES] for _, fit_res in results])}
+        metrics_aggregated = {DATA_SAMPLES: sum([w for _, w in weighted_results])}
 
         return parameters_aggregated, metrics_aggregated
 
@@ -154,25 +160,27 @@ class FedAvg(Strategy):
         **kwargs,
     ) -> Dict:
         """Aggregate evaluation losses using weighted average."""
+        valid_results = [
+            (res.config[METRICS][ACCURACY], res.config[METRICS][LOSS], res.config[METRICS][DATA_SAMPLES])
+            for _, res in results if METRICS in res.config and DATA_SAMPLES in res.config[METRICS] and res.config[METRICS][DATA_SAMPLES] > 0
+        ]
+        
+        if len(valid_results) == 0:
+            return {}
+
         # Aggregate acc
         acc_aggregated = weighted_acc_avg(
-            [
-                (evaluate_res.config[METRICS][ACCURACY], evaluate_res.config[METRICS][DATA_SAMPLES])
-                for _, evaluate_res in results
-            ]
+            [(acc, samples) for acc, loss, samples in valid_results]
         )
         # Aggregate loss
         loss_aggregated = weighted_loss_avg(
-            [
-                (evaluate_res.config[METRICS][LOSS], evaluate_res.config[METRICS][DATA_SAMPLES])
-                for _, evaluate_res in results
-            ]
+            [(loss, samples) for acc, loss, samples in valid_results]
         )
         # update metrics
         metrics_aggregated = {
             ACCURACY: acc_aggregated,
             LOSS: loss_aggregated,
-            DATA_SAMPLES: sum([evaluate_res.config[METRICS][DATA_SAMPLES] for _, evaluate_res in results])
+            DATA_SAMPLES: sum([samples for acc, loss, samples in valid_results])
         }
         return metrics_aggregated
 

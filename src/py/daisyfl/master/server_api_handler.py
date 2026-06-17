@@ -125,11 +125,18 @@ class ServerListener:
             seed_model_path = js.get("SEED_MODEL_PATH")
             seed_scaler_path = js.get("SEED_SCALER_PATH")
             
-            # Use TID as model storage directory: model/{tid}/model.npy
-            if task_id != "unknown":
+            # Use TID as model storage directory if not already provided or if seed/meta is used
+            orig_model_path = js.get(MODEL_PATH)
+            if task_id != "unknown" and orig_model_path and os.path.exists(orig_model_path) and not seed_model_path and not model_meta:
+                # Compatibility mode: prioritize existing relative path
+                model_path = orig_model_path
+                log(INFO, "Task %s: Using existing model file at %s", task_id, model_path)
+            elif task_id != "unknown":
+                # Archiving mode: automatically use model/{tid} directory
                 model_path = os.path.join("model", task_id, "model.npy")
-                js[MODEL_PATH] = model_path  # Update task config so TaskManager uses TID-scoped path
+                js[MODEL_PATH] = model_path
                 js[_SCALER_PATH] = os.path.join("model", task_id, "scaler.pkl")
+                log(INFO, "Task %s: Model path updated to %s for archiving", task_id, model_path)
             else:
                 model_path = js.get(MODEL_PATH, "model/model.npy")
             scaler_path = js.get(_SCALER_PATH, os.path.join(os.path.dirname(model_path) or "model", "scaler.pkl"))
@@ -171,7 +178,9 @@ class ServerListener:
             # Auto-spawn clients based on groups found in MongoDB for this TID
             if task_id != "unknown":
                 try:
-                    m_client = MongoClient(_get_mongo_uri())
+                    m_client = MongoClient(_get_mongo_uri(), serverSelectionTimeoutMS=2000)
+                    # Check connection quickly
+                    m_client.server_info()
                     col = m_client["daisy_mtlf"]["training_data"]
                     distinct_groups = [g for g in col.distinct("group_id", {"tid": task_id}) if g is not None]
                     
@@ -205,8 +214,8 @@ class ServerListener:
                     else:
                         log(WARNING, "No groups found in MongoDB for TID %s. No clients spawned.", task_id)
                 except Exception as e:
-                    log(ERROR, "Failed to auto-spawn clients: %s", e)
-                    return {"error": f"Task preparation failed: {e}"}, 500
+                    log(WARNING, "Failed to connect to MongoDB or auto-spawn clients (this is normal for standard FL tasks): %s", e)
+                    # Non-fatal for backward compatibility
 
             if callback_url:
                 # Async path: return 202 immediately, train in background

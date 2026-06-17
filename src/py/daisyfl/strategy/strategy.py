@@ -40,6 +40,10 @@ from daisyfl.common.client_proxy import ClientProxy
 class Strategy(ABC):
     """Abstract base class for Daisy strategy implementations."""
 
+    def __init__(self, *args, **kwargs):
+        """Allow flexible initialization for backward compatibility."""
+        pass
+
     @abstractmethod
     def configure_fit(
         self, parameters: Parameters, config: Dict, **kwargs

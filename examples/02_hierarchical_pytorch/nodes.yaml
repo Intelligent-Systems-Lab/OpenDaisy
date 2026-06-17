@@ -1,27 +1,27 @@
 # hier
 master:
-    address: "140.113.110.82:8887"
-    api_ip: "140.113.110.82"
+    address: "0.0.0.0:8887"
+    api_ip: "0.0.0.0"
     api_port: 9887
     type: "master"
     children:
         - zone0:
-            address: "192.168.200.25:8888"
+            address: "0.0.0.0:8888"
             type: "zone"
             children:
                 - client0:
-                    address: "10.10.0.1:10087"
+                    address: "0.0.0.0:10087"
                     type: "client"
                 - client1:
-                    address: "10.10.0.2:10088"
+                    address: "0.0.0.0:10088"
                     type: "client"
         - zone1:
-            address: "192.168.200.35:8889"
+            address: "0.0.0.0:8889"
             type: "zone"
             children:
                 - client2:
-                    address: "10.100.0.1:10089"
+                    address: "0.0.0.0:10089"
                     type: "client"
                 - client3:
-                    address: "10.100.0.2:10090"
+                    address: "0.0.0.0:10090"
                     type: "client"
