@@ -1,0 +1,29 @@
+name: Code Quality Checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.8'
+
+      - name: Bootstrap dev environment
+        run: ./dev/bootstrap.sh
+
+      - name: Run lint checks
+        run: |
+          python -m poetry run python -m ruff check src/py/daisyfl
+          python -m poetry run python -m flake8 src/py/daisyfl
